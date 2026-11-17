@@ -1,0 +1,129 @@
+/* ── Table des aliments : valeurs moyennes pour 100 g (ordre de grandeur des tables Ciqual), poids cru ── */
+const FOODS = {
+  avoine:      {n:"Flocons d'avoine", k:370,p:13,g:60,l:7,   r:"Épicerie"},
+  avoine_sg:   {n:"Flocons d'avoine sans gluten", k:370,p:13,g:60,l:7, r:"Épicerie"},
+  skyr:        {n:"Skyr nature", k:63,p:11,g:4,l:0.2,          r:"Crèmerie"},
+  yaourt_soja: {n:"Yaourt au soja nature", k:50,p:4,g:2,l:2.3,   r:"Crèmerie"},
+  frouges:     {n:"Fruits rouges surgelés", k:45,p:1,g:8,l:0.3, r:"Surgelés"},
+  banane:      {n:"Banane", k:90,p:1.2,g:20,l:0.3, r:"Fruits et légumes", piece:120, unit:"banane"},
+  pomme:       {n:"Pomme", k:54,p:0.3,g:12,l:0.2,  r:"Fruits et légumes", piece:150, unit:"pomme"},
+  oeuf:        {n:"Œufs", k:140,p:12.5,g:0.5,l:10, r:"Crèmerie", piece:50, unit:"œuf"},
+  tofu:        {n:"Tofu ferme", k:130,p:13,g:2,l:8,  r:"Épicerie"},
+  pain:        {n:"Pain complet", k:240,p:9,g:41,l:3, r:"Boulangerie"},
+  pain_sg:     {n:"Pain sans gluten", k:250,p:4,g:45,l:5, r:"Boulangerie"},
+  cacahuete:   {n:"Beurre de cacahuète", k:600,p:25,g:15,l:50, r:"Épicerie"},
+  graines:     {n:"Graines de courge", k:560,p:30,g:10,l:46, r:"Épicerie"},
+  amandes:     {n:"Amandes", k:600,p:21,g:7,l:52, r:"Épicerie"},
+  fblanc:      {n:"Fromage blanc 0 %", k:48,p:7.5,g:4,l:0.2, r:"Crèmerie"},
+  poulet:      {n:"Blanc de poulet", k:120,p:23,g:0,l:2.5, r:"Viandes et poissons"},
+  dinde:       {n:"Escalope de dinde", k:110,p:24,g:0,l:1.5, r:"Viandes et poissons"},
+  boeuf:       {n:"Bœuf haché 5 %", k:125,p:21,g:0,l:5, r:"Viandes et poissons"},
+  saumon:      {n:"Pavé de saumon", k:200,p:20,g:0,l:13, r:"Viandes et poissons"},
+  cabillaud:   {n:"Dos de cabillaud", k:80,p:18,g:0,l:0.7, r:"Viandes et poissons"},
+  thon:        {n:"Thon au naturel", k:110,p:25,g:0,l:1, r:"Épicerie"},
+  lentilles:   {n:"Lentilles corail", k:340,p:24,g:50,l:2, r:"Épicerie"},
+  pois_chiches:{n:"Pois chiches cuits", k:140,p:7,g:20,l:2.5, r:"Épicerie"},
+  riz:         {n:"Riz basmati", k:350,p:8,g:77,l:1, r:"Épicerie"},
+  pates:       {n:"Pâtes complètes", k:350,p:13,g:65,l:2.5, r:"Épicerie"},
+  quinoa:      {n:"Quinoa", k:360,p:14,g:60,l:6, r:"Épicerie"},
+  pdt:         {n:"Pommes de terre", k:80,p:2,g:17,l:0.1, r:"Fruits et légumes"},
+  pdouce:      {n:"Patate douce", k:86,p:1.6,g:20,l:0.1, r:"Fruits et légumes"},
+  hverts:      {n:"Haricots verts", k:30,p:2,g:4,l:0.2, r:"Surgelés"},
+  brocolis:    {n:"Brocolis", k:34,p:3,g:4,l:0.4, r:"Fruits et légumes"},
+  courgette:   {n:"Courgettes", k:17,p:1.2,g:2.5,l:0.3, r:"Fruits et légumes"},
+  poelee:      {n:"Poêlée de légumes", k:40,p:2,g:6,l:0.5, r:"Surgelés"},
+  tomate:      {n:"Tomates", k:18,p:0.9,g:3,l:0.2, r:"Fruits et légumes"},
+  avocat:      {n:"Avocat", k:160,p:2,g:2,l:15, r:"Fruits et légumes", buy:150, unit:"avocat"},
+  huile:       {n:"Huile d'olive", k:900,p:0,g:0,l:100, r:"Épicerie"},
+  tortilla:    {n:"Tortillas complètes", k:300,p:9,g:48,l:7, r:"Boulangerie", piece:60, unit:"tortilla"},
+  tortilla_sg: {n:"Galettes de maïs", k:220,p:6,g:45,l:3, r:"Boulangerie", piece:30, unit:"galette"},
+};
+
+/* Substitutions selon le régime et les allergies déclarés au bilan */
+const SUBS = {
+  vege:   {poulet:"tofu", dinde:"tofu", boeuf:"lentilles", saumon:"tofu", cabillaud:"tofu", thon:"pois_chiches"},
+  pesce:  {poulet:"cabillaud", dinde:"cabillaud", boeuf:"saumon"},
+  lactose:{skyr:"yaourt_soja", fblanc:"yaourt_soja"},
+  gluten: {avoine:"avoine_sg", pain:"pain_sg", pates:"riz", tortilla:"tortilla_sg"},
+  noix:   {amandes:"graines", cacahuete:"graines"},
+  oeufs:  {oeuf:"tofu"},
+  poisson:{saumon:"poulet", cabillaud:"poulet", thon:"poulet"},
+};
+/* Quantités de remplacement : même rôle dans l'assiette, poids ajusté */
+const SUB_RATIO = {lentilles:0.55, pois_chiches:1.2, tofu:1.1, graines:1, yaourt_soja:1, riz:0.95, oeuf_tofu:1};
+
+const MEALS = {
+  B1:{t:"Bowl avoine, skyr et fruits rouges", slot:"Petit-déjeuner", min:5,
+      ing:[["avoine",70],["skyr",150],["frouges",100],["amandes",15]],
+      steps:["Versez {avoine} dans un bol.","Ajoutez {skyr} et les fruits rouges encore surgelés : ils décongèlent en 5 minutes.","Ajoutez {amandes}."]},
+  B2:{t:"Tartines œufs, avocat et tomate", slot:"Petit-déjeuner", min:10,
+      ing:[["pain",80],["oeuf",100],["avocat",50],["tomate",100]],
+      steps:["Faites griller {pain}.","Cuisez {oeuf} à la poêle, sans matière grasse ajoutée.","Écrasez l'avocat sur {pain}, ajoutez {oeuf} et la tomate en tranches."]},
+  B3:{t:"Fromage blanc, avoine, banane et cacahuète", slot:"Petit-déjeuner", min:3,
+      ing:[["fblanc",200],["avoine",50],["banane",120],["cacahuete",15]],
+      steps:["Mélangez {fblanc} et {avoine}.","Coupez la banane en rondelles par-dessus.","Ajoutez {cacahuete}."]},
+  L1:{t:"Poulet, riz basmati et brocolis", slot:"Déjeuner", min:20,
+      ing:[["poulet",150],["riz",80],["brocolis",200],["huile",10]],
+      steps:["Lancez {riz} dans l'eau bouillante salée (10 à 12 min).","Faites cuire les brocolis à la vapeur ou à l'eau 8 minutes.","Saisissez {poulet} en dés dans l'huile, 6 à 8 minutes. Assaisonnez."]},
+  L2:{t:"Bœuf, patate douce et haricots verts", slot:"Déjeuner", min:25,
+      ing:[["boeuf",150],["pdouce",250],["hverts",200],["huile",5]],
+      steps:["Coupez la patate douce en cubes et rôtissez-la 20 min à 200 °C avec l'huile.","Faites cuire les haricots verts 8 minutes.","Saisissez {boeuf} 4 à 5 minutes à feu vif."]},
+  L3:{t:"Pâtes complètes, thon, tomates et courgettes", slot:"Déjeuner", min:15,
+      ing:[["pates",90],["thon",120],["tomate",150],["courgette",150],["huile",10]],
+      steps:["Cuisez {pates} al dente.","Faites revenir courgettes et tomates en dés dans l'huile 8 minutes.","Ajoutez {thon} hors du feu et mélangez à {pates}."]},
+  L4:{t:"Bowl quinoa, dinde et avocat", slot:"Déjeuner", min:20,
+      ing:[["quinoa",70],["dinde",150],["avocat",60],["tomate",100],["huile",5]],
+      steps:["Rincez puis cuisez le quinoa 12 minutes.","Faites dorer {dinde} en lanières dans l'huile.","Disposez le quinoa, {dinde}, l'avocat et les tomates dans un bol."]},
+  S1:{t:"Banane et skyr", slot:"Collation", min:1,
+      ing:[["banane",120],["skyr",150]],
+      steps:["À prendre 60 à 90 minutes avant la séance, ou après."]},
+  S2:{t:"Pomme et amandes", slot:"Collation", min:1,
+      ing:[["pomme",150],["amandes",25]],
+      steps:["Facile à glisser dans le sac de sport."]},
+  S3:{t:"Tartine au beurre de cacahuète", slot:"Collation", min:2,
+      ing:[["pain",50],["cacahuete",20]],
+      steps:["Une tranche de {pain}, une fine couche de {cacahuete}."]},
+  D1:{t:"Saumon, riz et courgettes", slot:"Dîner", min:20,
+      ing:[["saumon",130],["riz",60],["courgette",250]],
+      steps:["Cuisez le riz.","Faites cuire {saumon} 12 minutes au four à 200 °C.","Poêlez les courgettes en rondelles 6 minutes."]},
+  D2:{t:"Omelette, pommes de terre et légumes", slot:"Dîner", min:20,
+      ing:[["oeuf",150],["pdt",250],["poelee",200],["huile",5]],
+      steps:["Faites cuire les pommes de terre à l'eau 15 minutes.","Réchauffez la poêlée de légumes.","Faites cuire {oeuf} dans l'huile, en omelette ou brouillés."]},
+  D3:{t:"Cabillaud, quinoa et brocolis", slot:"Dîner", min:20,
+      ing:[["cabillaud",180],["quinoa",60],["brocolis",200],["huile",10]],
+      steps:["Cuisez le quinoa 12 minutes.","Faites cuire {cabillaud} à la poêle dans l'huile, 4 minutes par face.","Brocolis à la vapeur 8 minutes."]},
+  D4:{t:"Wraps au poulet", slot:"Dîner", min:15,
+      ing:[["tortilla",120],["poulet",120],["tomate",100],["fblanc",50]],
+      steps:["Faites dorer {poulet} en lanières.","Tartinez {tortilla} de {fblanc} assaisonné.","Garnissez de {poulet} et de tomates, roulez."]},
+  D5:{t:"Lentilles corail aux légumes et riz", slot:"Dîner", min:20,
+      ing:[["lentilles",80],["riz",40],["poelee",200],["huile",10]],
+      steps:["Cuisez les lentilles corail 12 minutes dans deux fois leur volume d'eau.","Cuisez le riz.","Faites revenir la poêlée dans l'huile et mélangez le tout. Épicez au curry si vous aimez."]},
+};
+
+const WEEK = [ // lundi → dimanche
+  ["B1","L1","S1","D1"],["B2","L2","S2","D2"],["B3","L3","S1","D3"],["B1","L4","S3","D4"],
+  ["B2","L1","S2","D5"],["B3","L2","S1","D1"],["B1","L3","S2","D2"],
+];
+const SLOT_TIME = {"Petit-déjeuner":"7h30","Déjeuner":"12h30","Collation":"16h30","Dîner":"20h00"};
+
+const OBJECTIFS = {
+  muscle:{label:"Prise de muscle", code:"MUSCLE", pct:135},
+  forme: {label:"Remise en forme", code:"FORME", pct:115},
+  perte: {label:"Perte de gras", code:"SECHE", pct:100},
+  perf:  {label:"Performance", code:"PERF", pct:125},
+};
+
+/* Mots du titre à remplacer quand un aliment est substitué */
+const TITLE_W = {
+  poulet:[/poulet/i], dinde:[/dinde/i], boeuf:[/bœuf/i], saumon:[/saumon/i], cabillaud:[/cabillaud/i], thon:[/thon/i],
+  skyr:[/skyr/i], fblanc:[/fromage blanc/i], oeuf:[/omelette/i,/œufs/i], amandes:[/amandes/i], cacahuete:[/cacahuète/i],
+  pates:[/pâtes complètes/i], avoine:[/avoine/i], riz:[/riz/i], quinoa:[/quinoa/i], pdt:[/pommes de terre/i], pdouce:[/patate douce/i],
+  brocolis:[/brocolis/i], courgette:[/courgettes?/i], hverts:[/haricots verts/i], lentilles:[/lentilles/i], pois_chiches:[/pois chiches/i],
+  tofu:[/tofu/i], banane:[/banane/i], pomme:[/pomme(?! de terre)/i], frouges:[/fruits rouges/i], avocat:[/avocat/i],
+};
+const TITLE_TO = {tofu:"tofu", lentilles:"lentilles", pois_chiches:"pois chiches", yaourt_soja:"yaourt soja", graines:"graines de courge",
+  riz:"riz", avoine_sg:"avoine sans gluten", cabillaud:"cabillaud", saumon:"saumon", poulet:"poulet"};
+
+/* Noms utilisés dans les étapes de recette, après substitution */
+const STEP_N = {"avoine": "les flocons d'avoine", "avoine_sg": "les flocons d'avoine sans gluten", "skyr": "le skyr", "yaourt_soja": "le yaourt au soja", "oeuf": "les œufs", "tofu": "le tofu", "pain": "le pain complet", "pain_sg": "le pain sans gluten", "cacahuete": "une cuillère de beurre de cacahuète", "graines": "une cuillère de graines de courge", "amandes": "quelques amandes concassées", "fblanc": "le fromage blanc", "poulet": "le poulet", "dinde": "la dinde", "boeuf": "le bœuf haché", "saumon": "le saumon", "cabillaud": "le cabillaud", "thon": "le thon émietté", "lentilles": "les lentilles corail (12 min de cuisson)", "pois_chiches": "les pois chiches égouttés", "riz": "le riz", "pates": "les pâtes", "tortilla": "les tortillas", "tortilla_sg": "les galettes de maïs"};
+
