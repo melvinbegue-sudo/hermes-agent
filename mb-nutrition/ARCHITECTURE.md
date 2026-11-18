@@ -54,3 +54,33 @@ Every bridge must load and no-op safely in a plain browser / the artifact (no Ca
   New metric colours: `--hr` (heart, red-pink), `--sleep` (indigo), `--fast` (teal). Dark mode via tokens only.
 - French UI copy, "vous", short. Accessibility: buttons have labels, focus-visible, reduced motion respected.
 - Not medical: health numbers are informative, the legal footer stays.
+
+## Abonnement, calls, notifications (v2)
+
+Decisions (owner): 87 €/month Stripe subscription; without an active subscription the client
+app shows a paywall (journal stays readable; plan, chat and calls are locked); the coach can
+grant free access per client. Calls are booked through Cal.com, unlimited for subscribers.
+Notifications: local pre-session reminders (device) + push notifications sent by the coach.
+All of this exists only when MBSync.enabled(); local/artifact mode never shows a paywall.
+
+Secrets live in Supabase (Edge Function secrets), never in the app: STRIPE_SECRET_KEY,
+STRIPE_WEBHOOK_SECRET, STRIPE_PRICE_ID, CAL_WEBHOOK_SECRET, FCM_SERVICE_ACCOUNT (JSON).
+Non-secret app config in www/config.js: `calUrl` (e.g. "https://cal.com/melvin-begue/call").
+
+### `MBSync` additions
+- `billing.status()` -> `{active:boolean, status:"active"|"trialing"|"past_due"|"canceled"|"none"|"comp", periodEnd:iso|null}` or null.
+  `active` is true for active/trialing/comp (and past_due within Stripe's retry window).
+- `billing.checkout()` -> Stripe Checkout URL (string) or null. Edge Function `create-checkout`.
+- `billing.portal()` -> Stripe customer-portal URL or null. Edge Function `billing-portal`.
+- `calls.next()` -> `{start:iso, end:iso, url:string|null}` of the client's next booked call, or null.
+- `calls.list(clientId?)` -> upcoming calls (coach: all clients when clientId omitted).
+- `push.register(token, platform:"ios"|"android")` -> boolean (stores the device token).
+- Coach only: `coach.grantAccess(clientId, on:boolean)`, `coach.push({to:clientId|"all", title, body})` -> number sent or null
+  (Edge Function `send-push`, FCM HTTP v1 for Android + iOS).
+- `coach.clients()` rows gain `billing: {status, periodEnd}` and `nextCall`.
+
+### `MBNative` additions
+- `openUrl(url)` — opens in the system browser / in-app browser (@capacitor/browser); web: window.open / location.
+- `push.register()` -> `{token, platform}` or null (asks permission; native only).
+- `push.onTap(cb)` — cb({title, body, data}) when a push notification is tapped.
+- Pre-session reminders keep using `notify.schedule(list)`.
