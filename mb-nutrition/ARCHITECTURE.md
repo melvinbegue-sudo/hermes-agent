@@ -76,6 +76,7 @@ Non-secret app config in www/config.js: `calUrl` (e.g. "https://cal.com/melvin-b
 - `calls.next()` -> `{start:iso, end:iso, url:string|null}` of the client's next booked call, or null.
 - `calls.list(clientId?)` -> upcoming calls (coach: all clients when clientId omitted).
 - `push.register(token, platform:"ios"|"android")` -> boolean (stores the device token).
+- `push.unregister(token)` -> boolean (deletes this device's token; called before signOut).
 - Coach only: `coach.grantAccess(clientId, on:boolean)`, `coach.push({to:clientId|"all", title, body})` -> number sent or null
   (Edge Function `send-push`, FCM HTTP v1 for Android + iOS).
 - `coach.clients()` rows gain `billing: {status, periodEnd, cancelAt}` and `nextCall`.

@@ -17,7 +17,7 @@ const calls = (S) => [
   S.uploadPhoto({}, "meal"), S.photoUrl("x"), S.pullPlan(), S.messages.list(), S.messages.send("hi"), S.messages.markRead(),
   S.analyzeMeal({}), S.coach.clients(), S.coach.client("id"), S.coach.update("id", { plan: {} }),
   S.billing.status(), S.billing.checkout(), S.billing.portal(), S.calls.next(), S.calls.list(), S.calls.list("id"),
-  S.push.register("tok", "ios"), S.coach.grantAccess("id", true), S.coach.push({ to: "all", title: "t", body: "b" }),
+  S.push.register("tok", "ios"), S.push.unregister("tok"), S.coach.grantAccess("id", true), S.coach.push({ to: "all", title: "t", body: "b" }),
 ];
 
 test("empty MB_CONFIG: disabled, every method resolves null/false", async () => {
@@ -59,9 +59,10 @@ const live = (client) => load({ MB_CONFIG: { supabaseUrl: "https://x.supabase.co
 
 test("billing.status maps the subscriptions row", async () => {
   const st = async (sub) => plain(await live(fake({ profiles: [{ role: "client" }], subscriptions: sub })).billing.status());
-  assert.deepEqual(await st([]), { active: false, status: "none", periodEnd: null });
+  assert.deepEqual(await st([]), { active: false, status: "none", periodEnd: null, cancelAt: false });
   assert.deepEqual(await st([{ status: "past_due", comp: false, current_period_end: "2026-12-01T00:00:00Z" }]),
-    { active: true, status: "past_due", periodEnd: "2026-12-01T00:00:00Z" });
+    { active: true, status: "past_due", periodEnd: "2026-12-01T00:00:00Z", cancelAt: false });
+  assert.equal((await st([{ status: "active", comp: false, cancel_at_period_end: true }])).cancelAt, true);
   assert.equal((await st([{ status: "canceled", comp: true }])).status, "comp");
   assert.equal((await st([{ status: "canceled", comp: false }])).active, false);
   assert.equal((await live(fake({ profiles: [{ role: "coach" }] })).billing.status()).active, true);
@@ -69,21 +70,23 @@ test("billing.status maps the subscriptions row", async () => {
 
 test("coach.clients adds billing + nextCall, and still loads without the v2 tables", async () => {
   const base = { profiles: [{ id: "c1", prenom: "A" }, { id: "c2", prenom: "B" }], coach_notes: [] };
-  const rows = await live(fake({ ...base, subscriptions: [{ client_id: "c1", status: "active", comp: false, current_period_end: "x" }],
+  const rows = await live(fake({ ...base, subscriptions: [{ client_id: "c1", status: "active", comp: false, current_period_end: "x", cancel_at_period_end: true }],
     bookings: [{ client_id: "c2", starts_at: "s", ends_at: "e", meeting_url: null }] })).coach.clients();
   assert.deepEqual(plain(rows.map((r) => [r.billing, r.nextCall])), [
-    [{ status: "active", periodEnd: "x" }, null],
-    [{ status: "none", periodEnd: null }, { start: "s", end: "e", url: null }],
+    [{ status: "active", periodEnd: "x", cancelAt: true }, null],
+    [{ status: "none", periodEnd: null, cancelAt: false }, { start: "s", end: "e", url: null }],
   ]);
   const old = await live(fake(base)).coach.clients();
   assert.deepEqual(plain(old.map((r) => [r.id, r.billing, r.nextCall])), [["c1", null, null], ["c2", null, null]]);
 });
 
 test("push.register validates platform; coach.push returns the sent count", async () => {
-  const S = live(fake({}, "u1", { rpc: async () => ({ data: true, error: null }),
+  const S = live(fake({ push_tokens: [] }, "u1", { rpc: async () => ({ data: true, error: null }),
     functions: { invoke: async (name, o) => ({ data: name === "send-push" && o.body.to === "all" ? { sent: 3 } : null, error: null }) } }));
   assert.equal(await S.push.register("tok", "web"), false);
   assert.equal(await S.push.register("tok", "android"), true);
+  assert.equal(await S.push.unregister(""), false);
+  assert.equal(await S.push.unregister("tok"), true);
   assert.equal(await S.coach.grantAccess("c1", true), true);
   assert.equal(await S.coach.push({ to: "all", title: "t", body: "b" }), 3);
 });
