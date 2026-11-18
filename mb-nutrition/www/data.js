@@ -287,3 +287,10 @@ const STEP_N = {"avoine": "les flocons d'avoine", "avoine_sg": "les flocons d'av
   "haricots_rouges": "les haricots rouges égouttés", "lentilles_v": "les lentilles vertes", "semoule": "la semoule (5 min à couvert dans son volume d'eau bouillante)",
   "quinoa": "le quinoa (12 min de cuisson)", "noix": "quelques cerneaux de noix"};
 
+
+/* Drive : lien de recherche par article (le client choisit son magasin une fois).
+   shortcut: formats d'URL non vérifiés (sites injoignables depuis l'atelier), à tester sur e.leclerc et carrefour.fr. */
+window.DRIVE = {
+  leclerc:  {name:"E.Leclerc Drive", search:q=>"https://www.e.leclerc/recherche?q="+encodeURIComponent(q)},
+  carrefour:{name:"Carrefour Drive", search:q=>"https://www.carrefour.fr/s?q="+encodeURIComponent(q)},
+};
