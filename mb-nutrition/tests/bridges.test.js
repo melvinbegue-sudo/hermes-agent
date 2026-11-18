@@ -6,8 +6,9 @@ const path = require('node:path');
 const vm = require('node:vm');
 
 const www = path.join(__dirname, '..', 'www');
-function load(window, ...files) {
-  const ctx = vm.createContext({ window, navigator: {}, document: {}, console, Date, Math, Promise, setTimeout });
+function load(window, ...files) { return loadWith({}, window, ...files); }
+function loadWith(globals, window, ...files) {
+  const ctx = vm.createContext({ window, navigator: {}, document: {}, console, Date, Math, Promise, setTimeout, clearTimeout, ...globals });
   for (const f of files) vm.runInContext(fs.readFileSync(path.join(www, f), 'utf8'), ctx);
   return window;
 }
@@ -82,6 +83,8 @@ test('plain browser: loads, no-ops, never throws', async () => {
   assert.strictEqual(await w.MBNative.scanBarcode(), null); // pas de BarcodeDetector
   assert.strictEqual(await w.MBNative.notify.permission(), false);
   assert.strictEqual(await w.MBNative.notify.schedule([{ id: 1, title: 'Eau', body: '', hour: 10, minute: 0 }]), false);
+  assert.strictEqual(await w.MBNative.push.register(), null);
+  w.MBNative.push.onTap(() => {}); w.MBNative.notify.onTap(() => {});
 });
 
 test('native notifications replace previous schedule', async () => {
@@ -97,5 +100,73 @@ test('native notifications replace previous schedule', async () => {
   assert.deepStrictEqual(JSON.parse(JSON.stringify(calls)), [
     ['cancel', { notifications: [{ id: 7 }] }],
     ['schedule', { notifications: [{ id: 1, title: 'Repas', body: 'Midi', schedule: { on: { hour: 12, minute: 30 }, allowWhileIdle: true } }] }]
+  ]);
+});
+
+test('notification data passes through as extra', async () => {
+  const calls = [];
+  const ln = { checkPermissions: async () => ({ display: 'granted' }), getPending: async () => ({}), cancel: async () => {},
+    schedule: async (o) => calls.push(o) };
+  const w = load({ Capacitor: { isNativePlatform: () => true, Plugins: { LocalNotifications: ln } } }, 'native.js');
+  await w.MBNative.notify.schedule([{ id: 2, title: 'Séance', body: '', hour: 18, minute: 0, weekday: 2, data: { kind: 'seance' } }]);
+  assert.deepStrictEqual(plain(calls[0].notifications[0].extra), { kind: 'seance' });
+  assert.deepStrictEqual(plain(calls[0].notifications[0].schedule.on), { weekday: 2, hour: 18, minute: 0 });
+});
+
+const nativeWin = (Plugins, plat = 'ios') => ({ Capacitor: { isNativePlatform: () => true, getPlatform: () => plat, Plugins } });
+function listeners() {
+  const l = {};
+  return { l, addListener: async (ev, fn) => { l[ev] = fn; return { remove: async () => {} }; } };
+}
+
+test('openUrl: native Browser, web tab, blocked popup, rejected URL', async () => {
+  const opened = [];
+  let w = load(nativeWin({ Browser: { open: async (o) => opened.push(o) } }), 'native.js');
+  assert.strictEqual(await w.MBNative.openUrl('https://checkout.stripe.com/x'), true);
+  assert.deepStrictEqual(plain(opened), [{ url: 'https://checkout.stripe.com/x' }]);
+  assert.strictEqual(await w.MBNative.openUrl('javascript:alert(1)'), false);
+
+  const tab = {};
+  w = load({ open: (u, t) => { opened.push([u, t]); return tab; }, location: {} }, 'native.js');
+  assert.strictEqual(await w.MBNative.openUrl('https://cal.com/x'), true);
+  assert.deepStrictEqual(opened[1], ['https://cal.com/x', '_blank']);
+  assert.strictEqual(tab.opener, null);
+
+  w = load({ open: () => null, location: {} }, 'native.js');
+  assert.strictEqual(await w.MBNative.openUrl('https://cal.com/y'), true);
+  assert.strictEqual(w.location.href, 'https://cal.com/y');
+  w = load({ open: () => { throw new Error('nope'); } }, 'native.js');
+  assert.strictEqual(await w.MBNative.openUrl('https://cal.com/z'), false);
+});
+
+test('push.register: FCM token, denied, error, timeout', async () => {
+  const ok = { requestPermissions: async () => ({ receive: 'granted' }), getToken: async () => ({ token: 'fcm-123' }) };
+  let w = load(nativeWin({ FirebaseMessaging: ok }, 'android'), 'native.js');
+  assert.deepStrictEqual(plain(await w.MBNative.push.register()), { token: 'fcm-123', platform: 'android' });
+
+  w = load(nativeWin({ FirebaseMessaging: { ...ok, requestPermissions: async () => ({ receive: 'denied' }) } }), 'native.js');
+  assert.strictEqual(await w.MBNative.push.register(), null);
+
+  w = load(nativeWin({ FirebaseMessaging: { ...ok, getToken: async () => { throw new Error('no google-services'); } } }), 'native.js');
+  assert.strictEqual(await w.MBNative.push.register(), null);
+
+  // getToken ne répond jamais : le délai (10 s) est simulé immédiatement
+  const fastTimer = (fn, ms, ...a) => setTimeout(fn, ms >= 10000 ? 0 : ms, ...a);
+  w = loadWith({ setTimeout: fastTimer }, nativeWin({ FirebaseMessaging: { ...ok, getToken: () => new Promise(() => {}) } }), 'native.js');
+  assert.strictEqual(await w.MBNative.push.register(), null);
+});
+
+test('onTap: push and local reminder give {title, body, data}', async () => {
+  const fm = listeners(), ln = listeners(), got = [];
+  const w = load(nativeWin({ FirebaseMessaging: fm, LocalNotifications: ln }), 'native.js');
+  w.MBNative.push.onTap((n) => got.push(n));
+  w.MBNative.notify.onTap((n) => got.push(n));
+  fm.l.notificationActionPerformed({ actionId: 'tap', notification: { title: 'Coach', body: 'Bravo', data: { kind: 'msg' } } });
+  ln.l.localNotificationActionPerformed({ actionId: 'tap', notification: { id: 2, title: 'Séance', body: '18h', extra: { kind: 'seance' } } });
+  fm.l.notificationActionPerformed(null); // charge vide : pas d'exception
+  assert.deepStrictEqual(plain(got), [
+    { title: 'Coach', body: 'Bravo', data: { kind: 'msg' } },
+    { title: 'Séance', body: '18h', data: { kind: 'seance' } },
+    { title: '', body: '', data: {} }
   ]);
 });
