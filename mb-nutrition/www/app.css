@@ -360,3 +360,4 @@ textarea.input{min-height:84px;resize:vertical}
   .tile:hover,.client:hover,.rcp:hover{box-shadow:var(--shadow),inset 0 0 0 1.5px var(--line)}
   .item:hover .nm{color:var(--ink)}
 }
+button:disabled{opacity:.45;cursor:default}
