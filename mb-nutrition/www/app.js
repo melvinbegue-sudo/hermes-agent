@@ -136,7 +136,7 @@ function exportCode(){const since=addDays(todayIso(),-27),days=[];
     w:S.weights.filter(w=>!w.ex&&w.date>=addDays(todayIso(),-90)).map(w=>[w.date,w.kg]),
     s:S.trainings.filter(t=>!t.ex&&t.date>=since).map(t=>[t.date,t.sport,t.min,t.intensite]),
     p:Object.entries(S.steps||{}).filter(([d])=>d>=since).map(([d,n])=>[d,n]),c:S.checkins.filter(c=>!c.ex).slice(-6).map(c=>[c.date,c.energie,c.sommeil,c.faim,c.respect,c.note||""]),d:days,
-    q:Object.entries(S.shopAsk||{}).filter(([d])=>d>=since)};
+    q:Object.entries(S.shopAsk||{}).filter(([d])=>d>=since),se:S.profile.seances,cy:(c=>c?[c.day,c.phase]:null)(cycleAt(todayIso()))};
   return "MBN1:"+btoa(unescape(encodeURIComponent(JSON.stringify(o))));}
 const b64=o=>btoa(unescape(encodeURIComponent(JSON.stringify(o))));
 function readPlan(str){const m=String(str||"").match(/MBP1:([A-Za-z0-9+/=]+)/);if(!m)return null;try{const o=JSON.parse(decodeURIComponent(escape(atob(m[1]))));return o&&o.v===1?o:null;}catch(e){return null;}}
@@ -189,7 +189,7 @@ function route(){
   header(v);const view=$("#view"),dir=last&&ALL.indexOf(v)<ALL.indexOf(last)?-1:1;
   V[v](view);hydratePhotos(view);
   if(last!==null&&last!==v&&!RM){view.animate([{opacity:0,translate:(dir*24)+"px 0"},{opacity:1,translate:"0 0"}],{duration:280,easing:EO});const f0=view.firstElementChild;f0&&f0.animate([{transform:"translateY(10px)"},{transform:"none"}],{duration:280,easing:EIO});}
-  if(last!==v){reveal(view);scrollTo({top:0,behavior:"instant"});}last=v;}
+  if(last!==v){reveal(view);scrollTo({top:0,behavior:"instant"});}last=v;maybeConsent();}
 function header(v){const P=S.profile,st=streak();
   const mark='<span class="brandmark"><svg viewBox="0 0 100 100" aria-hidden="true"><path fill="currentColor" style="color:var(--ink)" d="M73 44 59.3 55.3 52.3 98.4 72.6 73.1Z M27.2 44 27.6 73.1 48 98.4 41.1 55.3Z M99.8.8 50.3 35.2.6.8.6 52.1 17.3 65.2 17.4 29 50.1 51.9 82.7 29 83.1 65.2 99.6 52.2Z"/></svg><span>MB NUTRITION</span></span>';
   const date=parse(selDate).toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long"});
@@ -399,7 +399,8 @@ V.progres=v=>{const mon=monday(todayIso()),days=[0,1,2,3,4,5,6].map(i=>addDays(m
   const wks=[3,2,1,0].map(k=>{const m=addDays(mon,-7*k);return{m,n:weekTrainings(m).length,min:weekTrainings(m).reduce((a,t)=>a+t.min,0)};}),C=S.checkins,logged=days.filter((d,i)=>kc[i]>0),avg=logged.length?Math.round(logged.reduce((a,d)=>a+eatenOf(d).k,0)/logged.length):0;
   const photos=Object.entries(S.log).flatMap(([d,es])=>es.filter(e=>e.photo).map(e=>({d,e}))).sort((a,b)=>a.d<b.d?1:-1).slice(0,6);
   const card=(cls,label,val,unit,sub,chart,act)=>'<section class="card metric"><div class="head"><div><span class="eyebrow '+cls+'">'+label+'</span><div class="n" style="margin-top:6px">'+val+(unit?'<small> '+unit+'</small>':'')+'</div>'+(sub?'<span class="delta mute">'+sub+'</span>':'')+'</div>'+(act||'')+'</div>'+chart+'</section>';
-  v.innerHTML=
+  const showB=dow(todayIso())===0||V.progres.wb;
+  v.innerHTML=(showB?bilanCard(weekBilan(xOfS(),addDays(mon,-7))):'<div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn sm soft" data-wb>Bilan de la semaine</button><button class="btn sm soft" data-pdf><svg aria-hidden="true"><use href="#i-download"/></svg>Bilan du mois (PDF)</button></div>')+
    card("c-kcal","Calories",fmt(avg),"kcal / jour","moyenne de la semaine",sparkBars(kc,lab,"var(--kcal)",tgt))+
    card("c-weight","Poids",lw?dec(lw.kg):"–","kg",lw&&fw&&fw!==lw?((lw.kg-fw.kg<=0?"":"+")+dec(lw.kg-fw.kg)+" kg en 30 jours"):"",W.length>1?sparkLine(W.slice(-12).map(w=>[w.date,w.kg]),"var(--weight)"):'','<button class="btn sm soft" data-w>Noter</button>')+measureCard()+
    card("c-steps","Pas",fmt(stp.reduce((a,b)=>a+b,0)/Math.max(1,stp.filter(Boolean).length)),"/ jour","objectif "+fmt(goal),sparkBars(stp,lab,"var(--steps)",goal),'<button class="btn sm soft" data-s>Noter</button>')+
@@ -412,7 +413,8 @@ V.progres=v=>{const mon=monday(todayIso()),days=[0,1,2,3,4,5,6].map(i=>addDays(m
    progressCard()+
    '<button class="btn block" data-ex><svg aria-hidden="true"><use href="#i-wa"/></svg>Envoyer à Melvin</button>'+(S.lastExport?'<p class="small mute" style="text-align:center">Dernier envoi : '+short(S.lastExport)+'</p>':'');
   requestAnimationFrame(()=>{if(!RM)$$(".chart .bar",v).forEach((r,i)=>r.animate([{transform:"scaleY(0)"},{transform:"none"}],{duration:600,delay:(i%7)*30,easing:EO,fill:"backwards"}));});
-  $("[data-w]",v).onclick=weightSheet;$("[data-s]",v).onclick=()=>{selDate=todayIso();stepsSheet();};$("[data-t]",v).onclick=trainingSheet;$("[data-ci]",v)&&($("[data-ci]",v).onclick=checkinSheet);$("[data-ex]",v).onclick=exportSheet;bindProgress(v);};
+  $("[data-w]",v).onclick=weightSheet;$("[data-s]",v).onclick=()=>{selDate=todayIso();stepsSheet();};$("[data-t]",v).onclick=trainingSheet;$("[data-ci]",v)&&($("[data-ci]",v).onclick=checkinSheet);$("[data-ex]",v).onclick=exportSheet;bindProgress(v);
+  $("[data-wb]",v)&&($("[data-wb]",v).onclick=()=>{V.progres.wb=true;rerender();});$("[data-pdf]",v).onclick=e=>monthPdf(xOfS(),e.currentTarget);};
 function exportSheet(){if(S.example){toast("Faites d'abord votre bilan");go("bilan");return;}
   const code=exportCode(),wt=weekTrainings(),lw=lastWeight(),C=S.checkins.filter(c=>!c.ex).slice(-1)[0];
   const msg="Suivi MB NUTRITION – "+S.profile.prenom+" – "+parse(todayIso()).toLocaleDateString("fr-FR")+"\nSéances cette semaine : "+wt.length+" / "+S.profile.seances+(lw?"\nPoids : "+dec(lw.kg)+" kg":"")+(C?"\nDernier point : énergie "+C.energie+"/5, sommeil "+C.sommeil+"/5":"")+"\n\nCode de suivi (à importer dans l'espace coach) :\n"+code;
@@ -465,14 +467,18 @@ V.profil=v=>{const P=S.profile,code=S.code&&parseCode(S.code);
    (S.example?'':'<section class="card stack"><div class="row between"><h2>Mon profil</h2><span class="pill">'+(planKcal()?fmt(planKcal())+' kcal/j · Melvin':fmt(targetKcal(P))+' kcal/j estimées')+'</span></div><ul class="hist">'+[["Profil",(P.sexe==="f"?"Femme":"Homme")+", "+P.age+" ans, "+P.taille+" cm"],["Entraînement",P.sport+", "+plural(P.seances,"séance")+" / sem., "+INT_TXT[P.intensite-1].toLowerCase()],["Alimentation",REG_TXT[P.regime]],["Allergies",P.allergies.map(a=>ALL_TXT[a]).join(", ")||"Aucune"]].map(([a,b])=>'<li><span class="mute">'+a+'</span><b>'+b+'</b></li>').join("")+'</ul></section>')+
    '<section class="card stack"><span class="eyebrow">Compte client</span><h2>'+(code?"Connecté avec votre code":"Vous avez reçu un code ?")+'</h2><p class="small mute">'+(code?"Portions réglées par Melvin à "+pct()+" % · objectif « "+OBJECTIFS[code.obj].label+" ».":"Code ou plan envoyé par Melvin.")+'</p>'+(code?'<span class="code">'+esc(S.code)+'</span><form class="row" id="cF" style="gap:8px"><label class="sr" for="cI">Nouveau plan de Melvin</label><input class="input" id="cI" placeholder="Coller un plan de Melvin" autocomplete="off" spellcheck="false"><button class="btn soft" type="submit">OK</button></form><button class="lnk" id="cX" style="justify-self:start">Me déconnecter de ce code</button>':'<form class="row" id="cF" style="gap:8px"><label class="sr" for="cI">Code client</label><input class="input" id="cI" placeholder="MB-FORME-115-K7Q2-X" autocomplete="off" spellcheck="false"><button class="btn gold" type="submit">Valider</button></form>')+'</section>'+
    (coachOn?'<a class="card row between" href="#coach" style="text-decoration:none"><span class="row"><span class="ico"><svg aria-hidden="true"><use href="#i-coach"/></svg></span><span><b style="color:var(--ink)">Espace coach</b><br><span class="small mute">Vos clients, leurs suivis, leurs codes</span></span></span><svg class="chev" style="transform:rotate(-90deg)" aria-hidden="true"><use href="#i-chev"/></svg></a>':'')+
-   accountCard()+subCard()+healthCard()+remindersCard()+themeCard()+
+   badgesCard()+accountCard()+subCard()+healthCard()+cycleCard()+remindersCard()+themeCard()+
    '<section class="card stack"><span class="eyebrow">Contact</span><h2>Melvin BEGUE</h2><p class="small mute">Coach sportif · Master STAPS EOPS</p><div class="row" style="flex-wrap:wrap;gap:10px"><a class="btn" href="'+wa("Bonjour Melvin, ")+'" target="_blank" rel="noopener"><svg aria-hidden="true"><use href="#i-wa"/></svg>WhatsApp</a><button class="btn line" data-copy="'+TEL_TXT+'"><svg aria-hidden="true"><use href="#i-copy"/></svg>'+TEL_TXT+'</button></div></section>'+
-   '<section class="card stack"><span class="eyebrow">Mes données</span><p class="small">'+(online()?"Journal, poids, séances, mensurations et points sont synchronisés avec votre compte pour Melvin. Les photos de repas restent sur ce téléphone.":"Journal, photos, poids et séances restent sur ce téléphone. Rien ne part chez Melvin sans que vous l\'envoyiez.")+'</p><div id="rz"><button class="btn line" id="rz1">Effacer mes données</button></div></section>'+legal;
+   '<section class="card stack"><span class="eyebrow">Mes données</span><p class="small mute">'+(online()?"Synchronisées avec Melvin · photos de repas sur ce téléphone.":"Sur ce téléphone uniquement.")+'</p>'+(LG()?'<div class="rem"><span><b>Données de santé</b><span>'+(consentOk()?"Accord donné":"Sans accord")+'</span></span><span></span><button class="sw" role="switch" id="dCs" aria-checked="'+consentOk()+'" aria-label="Accord pour les données de santé"></button></div>':'')+'<div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn sm soft" id="dEx"><svg aria-hidden="true"><use href="#i-download"/></svg>Exporter mes données</button><button class="btn sm line" id="dPv">Mentions et confidentialité</button></div><div id="rz"><button class="btn sm line" id="rz1">'+(online()&&acct.role!=="coach"?"Supprimer mon compte":"Effacer mes données")+'</button></div></section>'+legal;
   $$("[data-copy]",v).forEach(b=>b.onclick=()=>copy(b.dataset.copy,b));bindHealth(v);bindTheme(v);bindReminders(v);bindAccount(v);bindPay(v);
   $("#cF")&&($("#cF").onsubmit=e=>{e.preventDefault();if(!applyInput($("#cI").value)){$("#cI").focus();return;}route();});
   $("#cX")&&($("#cX").onclick=()=>{S.code=null;S.clientId=null;S.plan=null;save();route();});
-  $("#rz1").onclick=()=>{$("#rz").innerHTML='<div class="stack"><p class="small">Bilan, journal, photos, poids, séances et points seront effacés de ce téléphone.</p><div class="row" style="gap:8px"><button class="btn soft" id="rzN">Annuler</button><button class="btn danger" id="rzY">Tout effacer</button></div></div>';$("#rzN").focus();
-    $("#rzN").onclick=()=>route();$("#rzY").onclick=async()=>{try{localStorage.removeItem(KEY);if(PH.db)(await PH.db).close();}catch(e){}PH.db=null;try{indexedDB.deleteDatabase("mbn-photos");}catch(e){}S=seedExample(structuredClone(BLANK));wz=null;applyTheme();toast("Données effacées");go("accueil");};};};
+  bindCycleCard(v);$("#dEx").onclick=e=>exportData(e.currentTarget);$("#dPv").onclick=()=>privacySheet();$("#dCs")&&($("#dCs").onclick=()=>{if(consentOk()){setConsent(false);rerender();toast("Accord retiré");}else consentSheet(()=>rerender());});
+  $("#rz1").onclick=()=>{const del=online()&&acct.role!=="coach";$("#rz").innerHTML='<div class="stack"><p class="small">'+(del?"Compte, abonnement et données supprimés, ici et sur le serveur. Définitif.":"Bilan, journal, photos, poids, séances et points seront effacés de ce téléphone.")+'</p><div class="row" style="gap:8px"><button class="btn soft" id="rzN">Annuler</button><button class="btn danger" id="rzY">'+(del?"Supprimer mon compte":"Tout effacer")+'</button></div></div>';$("#rzN").focus();
+    $("#rzN").onclick=()=>route();$("#rzY").onclick=async e=>{if(del){e.currentTarget.disabled=true;let ok=false;try{ok=await MBSync.account?.delete?.();}catch(x){}
+      if(!ok){toast("Suppression impossible, réessayez");route();return;}unsub&&unsub();unsub=null;acct=null;try{await MBSync.signOut();}catch(x){}}
+      await wipeLocal();toast(del?"Compte supprimé":"Données effacées");go("accueil");};};};
+async function wipeLocal(){try{localStorage.removeItem(KEY);if(PH.db)(await PH.db).close();}catch(e){}PH.db=null;try{indexedDB.deleteDatabase("mbn-photos");}catch(e){}S=seedExample(structuredClone(BLANK));wz=null;applyTheme();}
 
 /* ───────── Espace coach : Melvin seulement (compte propriétaire), fiches dans la base de l'appli ───────── */
 let db=null,clients=[],tarif=87,ready=false,openC=null;
@@ -484,26 +490,27 @@ V.coach=v=>{if(syncCoach)return syncCoachView(v);if(openC){const c=clients.find(
   v.innerHTML='<div class="stack" style="gap:4px;padding-top:4px"><span class="eyebrow">Espace coach · visible par vous seul</span><h1 style="font-size:1.75rem">Vos clients</h1></div>'+
    '<section class="kpis"><div class="kpi"><span class="n">'+act.length+'</span><span>'+(act.length>1?"clients actifs":"client actif")+'</span></div><div class="kpi"><span class="n">'+fmt(act.length*tarif)+' €</span><span>par mois à '+tarif+' €</span></div><div class="kpi"><span class="n" style="color:'+(due.length?"var(--warn)":"var(--ok)")+'">'+due.length+'</span><span>'+(due.length>1?"suivis en retard":"suivi en retard")+'</span></div></section>'+
    '<div class="row" style="flex-wrap:wrap;gap:10px"><button class="btn gold" id="cA"><svg aria-hidden="true"><use href="#i-plus"/></svg>Nouveau client</button><button class="btn line" id="cI"><svg aria-hidden="true"><use href="#i-download"/></svg>Importer un suivi</button>'+(canImg?'<button class="btn line" id="cPh"><svg aria-hidden="true"><use href="#i-camera"/></svg>Analyser une photo</button>':'')+'<label class="row small mute" for="cT" style="gap:8px;margin-left:auto">Tarif<input class="input" id="cT" type="number" min="0" step="1" value="'+tarif+'" style="width:84px;min-height:42px"> €/mois</label></div>'+
+   (ready&&clients.length?alertsHtml(clients.filter(c=>c.statut==="Actif").flatMap(c=>alertsOf(xOfArt(c),c.id)),"art"):'')+
    (!ready?'<div class="card"><p class="mute">Chargement de vos fiches…</p></div>':!clients.length?'<div class="card stack"><h2>Aucun client pour l\'instant</h2><p class="small mute">Créez une fiche avec « Nouveau client » : vous obtenez son code de connexion à lui envoyer. Quand il vous envoie son suivi par WhatsApp, collez-le avec « Importer un suivi ».</p></div>':'')+
    '<div class="clients">'+clients.slice().sort((a,b)=>(a.statut===b.statut?0:a.statut==="Actif"?-1:1)||String(a.prenom).localeCompare(b.prenom,"fr")).map(c=>{const sv=c.suivi||{},w=sv.w||[],lw=w[w.length-1],fw=w[0],wk=(sv.s||[]).filter(t=>t[0]>=monday(todayIso())).length,avg=(sv.d||[]).slice(-7);const ad=avg.length?Math.round(avg.reduce((a,x)=>a+x[1]/x[3],0)/avg.length*100):null;
      return '<button class="client" data-o="'+c.id+'"><div class="row between"><div class="row"><span class="avatar sm">'+esc((c.prenom||"?")[0].toUpperCase())+'</span><div style="text-align:left"><h3>'+esc(c.prenom)+'</h3><p class="small mute">'+esc(c.salle||"Salle non précisée")+' · '+esc(OBJECTIFS[c.objectif]?.label||"")+'</p></div></div><span class="pill '+(c.statut==="Actif"?(late(c)?"warn":"ok"):"")+'">'+esc(c.statut)+(late(c)?" · à relancer":"")+'</span></div>'+
       '<div class="mini-kpis"><span><b>'+(lw?dec(lw[1])+" kg":"–")+'</b>'+(lw&&fw&&lw!==fw?'<small>'+(lw[1]-fw[1]<=0?"":"+")+dec(lw[1]-fw[1])+' kg</small>':'<small>poids</small>')+'</span><span><b>'+(sv.s?wk:"–")+'</b><small>séances / sem.</small></span><span><b>'+(ad!=null?ad+" %":"–")+'</b><small>objectif kcal</small></span></div><p class="small mute" style="text-align:left">'+(sv.at?"Suivi reçu le "+short(sv.at):"Aucun suivi importé")+'</p></button>';}).join("")+'</div>'+
    '<p class="legal">Fiches enregistrées dans la base de cette appli, lisibles par vous seul. Vos clients gardent leurs données sur leur téléphone et vous envoient leur suivi par WhatsApp.</p>';
   $("#cA").onclick=()=>editClient(null);$("#cI").onclick=importSheet;$("#cPh")&&($("#cPh").onclick=coachPhoto);
-  $("#cT").onchange=async e=>{tarif=Math.max(0,+e.target.value||0);try{await db.doc("coach/main").set({tarif});toast("Tarif enregistré");}catch(x){toast("Enregistrement impossible");}V.coach(v);};
-  $$("[data-o]",v).forEach(b=>b.onclick=()=>{openC=b.dataset.o;V.coach(v);reveal(v);scrollTo({top:0});});};
-function clientView(v,c){const sv=c.suivi||{},W=(sv.w||[]).map(([date,kg])=>({date,kg})),code=codeOf(c),D=sv.d||[],T=sv.s||[],C=(sv.c||[]).map(([date,energie,sommeil,faim,respect,note])=>({date,energie,sommeil,faim,respect,note}));
+  $("#cT").onchange=async e=>{tarif=Math.max(0,+e.target.value||0);try{await db.doc("coach/main").set({tarif,seuils});toast("Tarif enregistré");}catch(x){toast("Enregistrement impossible");}V.coach(v);};
+  $$("[data-o],[data-ao]",v).forEach(b=>b.onclick=()=>{openC=b.dataset.o||b.dataset.ao;V.coach(v);reveal(v);scrollTo({top:0});});bindAlerts(v);};
+function clientView(v,c){const X=xOfArt(c),sv=c.suivi||{},W=(sv.w||[]).map(([date,kg])=>({date,kg})),code=codeOf(c),D=sv.d||[],T=sv.s||[],C=(sv.c||[]).map(([date,energie,sommeil,faim,respect,note])=>({date,energie,sommeil,faim,respect,note}));
   const days7=D.slice(-7),ad=days7.length?Math.round(days7.reduce((a,x)=>a+x[1]/x[3],0)/days7.length*100):null,prot=days7.length?Math.round(days7.reduce((a,x)=>a+x[2],0)/days7.length):null;
-  v.innerHTML='<button class="lnk" id="bk" style="justify-self:start">← Tous les clients</button><section class="card stack"><div class="row between"><div class="row"><span class="avatar">'+esc((c.prenom||"?")[0].toUpperCase())+'</span><div><h1 style="font-size:1.5rem">'+esc(c.prenom)+'</h1><p class="small mute">'+esc(c.salle||"Salle non précisée")+' · '+esc(OBJECTIFS[c.objectif]?.label||"")+' · portions '+pct(stateOf(c,planOf(c)))+' %</p></div></div><span class="pill '+(c.statut==="Actif"?"ok":"")+'">'+esc(c.statut)+'</span></div>'+
+  v.innerHTML='<button class="lnk" id="bk" style="justify-self:start">← Tous les clients</button><section class="card stack"><div class="row between"><div class="row"><span class="avatar">'+esc((c.prenom||"?")[0].toUpperCase())+'</span><div><h1 style="font-size:1.5rem">'+esc(c.prenom)+'</h1><p class="small mute">'+esc(c.salle||"Salle non précisée")+' · '+esc(OBJECTIFS[c.objectif]?.label||"")+' · portions '+pct(stateOf(c,planOf(c)))+' %'+phaseTxt(X.cycle)+'</p></div></div><span class="pill '+(c.statut==="Actif"?"ok":"")+'">'+esc(c.statut)+'</span></div>'+
    '<div class="stack" style="gap:6px"><span class="small mute">Code de connexion à envoyer</span><div class="row" style="gap:8px;flex-wrap:wrap"><span class="code">'+code+'</span><button class="btn sm soft" data-cc><svg aria-hidden="true"><use href="#i-copy"/></svg>Copier</button><a class="btn sm" href="'+waAny(c.plan?planMsg(c):"Bonjour "+c.prenom+", voici votre code pour l'appli MB NUTRITION : "+code)+'" target="_blank" rel="noopener"><svg aria-hidden="true"><use href="#i-wa"/></svg>Envoyer</a></div></div><div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn sm line" data-ed>Modifier la fiche</button><button class="btn sm line" data-pt>Point fait aujourd\'hui</button><a class="btn sm line" href="'+waAny("Bonjour "+(c.prenom||"").split(" ")[0]+", petit point de la semaine ? Envoie-moi ton suivi depuis l'appli MB NUTRITION (Tendances, bouton WhatsApp).")+'" target="_blank" rel="noopener"><svg aria-hidden="true"><use href="#i-wa"/></svg>Relancer</a></div></section>'+planCard(c)+
-   (sv.at?'<section class="kpis"><div class="kpi"><span class="n">'+(W.length?dec(W[W.length-1].kg):"–")+'</span><span>kg, dernière pesée</span></div><div class="kpi"><span class="n">'+(ad!=null?ad+"%":"–")+'</span><span>de l\'objectif kcal (7 j)</span></div><div class="kpi"><span class="n">'+(prot!=null?prot:"–")+'</span><span>g de protéines / jour</span></div></section>'+
+   (sv.at?'<section class="kpis"><div class="kpi"><span class="n">'+(W.length?dec(W[W.length-1].kg):"–")+'</span><span>kg, dernière pesée</span></div><div class="kpi"><span class="n">'+(ad!=null?ad+"%":"–")+'</span><span>de l\'objectif kcal (7 j)</span></div><div class="kpi"><span class="n">'+(prot!=null?prot:"–")+'</span><span>g de protéines / jour</span></div></section>'+bilanCard(weekBilan(X,addDays(monday(todayIso()),-7)))+
     (W.length>1?'<section class="card stack"><h2>Poids</h2>'+sparkLine(W.slice(-12).map(w=>[w.date,w.kg]),"var(--weight)")+'</section>':'')+
     '<section class="card stack"><h2>Calories, 4 dernières semaines</h2>'+(D.length?daysChart(D):'<p class="small mute">Aucun repas noté.</p>')+'<div class="legend"><span><i style="background:var(--kcal)"></i>Mangé</span><span><i style="background:var(--sunk-2)"></i>Objectif</span></div></section>'+
     '<section class="card stack"><h2>Séances</h2>'+(T.length?'<ul class="entries">'+T.slice().reverse().slice(0,10).map(t=>'<li class="entry"><span><b>'+esc(t[1])+'</b><span class="mute">'+short(t[0])+' · '+(+t[2]||0)+' min</span></span><span class="k"><span class="int i'+(+t[3]||0)+'" aria-label="Intensité '+(INT_TXT[t[3]-1]||"–").toLowerCase()+'"><i></i><i></i><i></i></span></span><span></span></li>').join("")+'</ul>':'<p class="small mute">Aucune séance notée.</p>')+'</section>'+
     '<section class="card stack"><h2>Points hebdomadaires</h2>'+(C.length?sparkLine(C.slice(-8).map(x=>[x.date,x.energie]),"var(--ink)")+'<ul class="hist">'+C.slice().reverse().map(x=>'<li><span><b>'+short(x.date)+'</b></span><span class="mute">plan : '+(["peu","moyen","bien","très bien"][x.respect-1]||"–")+'</span><span class="mute" style="grid-column:1/-1">Énergie '+(+x.energie||"–")+'/5 · Sommeil '+(+x.sommeil||"–")+'/5 · Faim '+(+x.faim||"–")+'/5'+(x.note?'<br>« '+esc(x.note)+' »':'')+'</span></li>').join("")+'</ul>':'<p class="small mute">Aucun point reçu.</p>')+'</section>'+
     '<p class="small mute">Suivi importé le '+short(sv.at)+' · besoin estimé côté client : '+fmt(sv.t||0)+' kcal/j.</p>':'<section class="card stack"><h2>Pas encore de suivi</h2><p class="small mute">Envoyez le code à '+esc(c.prenom)+'. Quand il vous envoie son suivi par WhatsApp, utilisez « Importer un suivi ».</p><button class="btn gold" id="imp">Importer un suivi</button></section>')+
    (c.notes?'<section class="card stack"><h2>Notes</h2><p class="small" style="white-space:pre-wrap">'+esc(c.notes)+'</p></section>':'');
-  $("#bk",v).onclick=()=>{openC=null;V.coach(v);reveal(v);};$("[data-cc]",v).onclick=e=>copy(code,e.currentTarget);$("[data-ed]",v).onclick=()=>editClient(c);$("#imp",v)&&($("#imp",v).onclick=importSheet);$("[data-pl]",v).onclick=()=>planSheet(c);$("[data-pc]",v).onclick=e=>copy(planMsg(c),e.currentTarget);
+  $("#bk",v).onclick=()=>{openC=null;V.coach(v);reveal(v);};$("[data-cc]",v).onclick=e=>copy(code,e.currentTarget);$("[data-ed]",v).onclick=()=>editClient(c);$("#imp",v)&&($("#imp",v).onclick=importSheet);$("[data-pl]",v).onclick=()=>planSheet(c);$("[data-pc]",v).onclick=e=>copy(planMsg(c),e.currentTarget);$("[data-pdf]",v)&&($("[data-pdf]",v).onclick=e=>monthPdf(X,e.currentTarget));
   $("[data-pt]",v).onclick=async e=>{try{await db.doc("coach/main/clients/"+c.id).update({dernierPoint:todayIso()});pulse(e.currentTarget);toast("Point noté");}catch(x){toast("Enregistrement impossible");}};}
 function daysChart(D){const pts=D.slice(-28),W=330,H=150,top=Math.max(...pts.map(x=>Math.max(x[1],x[3])))*1.1,bw=Math.max(4,(W-30)/pts.length-3),x=i=>28+i*((W-30)/pts.length),y=k=>H-22-(k/top)*(H-34);
   return '<svg class="chart" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Calories notées par jour">'+[.5,1].map(f=>{const k=Math.round(top*f/100)*100;return '<line class="grid" x1="28" x2="'+W+'" y1="'+y(k)+'" y2="'+y(k)+'"/><text x="0" y="'+(y(k)+3)+'">'+dec(k/1000)+'k</text>';}).join("")+
@@ -511,7 +518,7 @@ function daysChart(D){const pts=D.slice(-28),W=330,H=150,top=Math.max(...pts.map
 function importSheet(){sheet('<div class="stack"><span class="eyebrow">Importer un suivi</span><h2>Collez le message du client</h2><p class="small mute">Copiez le message WhatsApp reçu (il contient un code qui commence par MBN1) et collez-le ici.</p><label class="sr" for="iT">Message du client</label><textarea class="input" id="iT" rows="6" placeholder="Suivi MB NUTRITION – …"></textarea><div id="iR"></div><button class="btn gold block" id="iG">Importer</button></div>',(sh,close)=>{
   $("#iG",sh).onclick=async()=>{const o=readExport($("#iT",sh).value);if(!o){$("#iR",sh).innerHTML='<p class="small" style="color:var(--bad)">Code de suivi introuvable dans ce texte. Collez le message complet.</p>';return;}
     let c=o.id&&clients.find(x=>cidOf(x)===String(o.id).toUpperCase());
-    const data={suivi:{at:o.at,t:o.t,pc:o.pc,w:o.w||[],s:o.s||[],c:o.c||[],d:o.d||[],q:Array.isArray(o.q)?o.q:[]},maj:new Date().toISOString()};if(o.r)data.regime=o.r;if(Array.isArray(o.a))data.allergies=o.a;
+    const data={suivi:{at:o.at,t:o.t,pc:o.pc,w:o.w||[],s:o.s||[],c:o.c||[],d:o.d||[],q:Array.isArray(o.q)?o.q:[],p:Array.isArray(o.p)?o.p:[],se:+o.se||null,cy:Array.isArray(o.cy)?o.cy:null},maj:new Date().toISOString()};if(o.r)data.regime=o.r;if(Array.isArray(o.a))data.allergies=o.a;
     if(o.c&&o.c.length)data.dernierPoint=o.c[o.c.length-1][0];
     try{if(c){await db.doc("coach/main/clients/"+c.id).update(data);}else{const id="c"+Date.now().toString(36);await db.doc("coach/main/clients/"+id).set(Object.assign({prenom:o.n||"Client",salle:"",objectif:"forme",pct:115,statut:"Actif",debut:todayIso(),notes:"",cid:newCid(),dernierPoint:data.dernierPoint||""},data));c={id};}
       close();toast("Suivi de "+(o.n||"votre client")+" importé");openC=c.id;setTimeout(()=>{V.coach($("#view"));reveal($("#view"));},120);}catch(x){toast("Import impossible, réessayez");}};});}
@@ -573,7 +580,7 @@ async function initCaps(){if(!window.claude?.use)return;claude.use("downloads").
   let user=null;try{user=await claude.use("user");}catch(e){}if(!user||!(await user.isOwner?.()))return;try{db=await claude.use("db");}catch(e){}if(!db)return;
   coachOn=true;if(["accueil","profil","coach"].includes(cur())||location.hash==="#coach")route();
   const t=setTimeout(()=>{ready=true;if(cur()==="coach")V.coach($("#view"));},10000);
-  try{const s=await db.doc("coach/main").get();if(s.exists&&s.data().tarif!=null)tarif=+s.data().tarif;}catch(e){}
+  try{const s=await db.doc("coach/main").get();if(s.exists&&s.data().tarif!=null)tarif=+s.data().tarif;if(s.exists&&s.data().seuils)seuils=Object.assign({},SEUILS0,s.data().seuils);}catch(e){}
   db.collection("coach/main/clients").onSnapshot(snap=>{clearTimeout(t);ready=true;clients=snap.docs.map(d=>({id:d.id,...d.data()}));if(cur()==="coach"&&!$(".sheet"))V.coach($("#view"));},()=>{clearTimeout(t);ready=true;if(cur()==="coach")V.coach($("#view"));});}
 
 /* ───────── Santé : Apple Santé / Health Connect via health.js (absent dans le navigateur) ───────── */
@@ -581,7 +588,7 @@ let hOK=false; /* available() est asynchrone : résultat mis en cache au démarr
 const H=()=>hOK?window.MBHealth:null;
 const hm=m=>Math.floor(m/60)+" h "+String(Math.round(m%60)).padStart(2,"0");
 let hBusy=false;
-async function healthPull(){const h=H();if(!h||!S.health.on||hBusy)return;hBusy=true;
+async function healthPull(){const h=H();if(!h||!S.health.on||hBusy||!consentOk())return;hBusy=true;
   try{const t=todayIso(),hs=S.health.steps||(S.health.steps={});
     const takeSteps=(d,n)=>{n=Math.round(+n||0);if(n>0&&n>=(S.steps[d]||0)){S.steps[d]=n;hs[d]=n;}}; /* ne jamais écraser un total manuel plus grand */
     const r=await h.range(addDays(t,-6),t)||{};
@@ -615,7 +622,7 @@ function healthCard(){const h=H();
     S.health.on?'<p class="small mute">'+(S.health.at?"Dernière synchronisation : "+new Date(S.health.at).toLocaleString("fr-FR",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}):"Synchronisation…")+'. Lecture seule : rien n\'est modifié dans Santé.</p><div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn sm soft" id="hS">Synchroniser</button><button class="btn sm line" id="hX">Déconnecter</button></div>':
     '<h2>Connecter Santé</h2><p class="small mute">Pas, fréquence cardiaque, sommeil, énergie active et poids s\'ajoutent tout seuls. Lecture seule.</p><button class="btn gold block" id="hC"><svg aria-hidden="true"><use href="#i-heart"/></svg>Connecter Santé</button>')+'</section>';}
 function bindHealth(v){$("#hR",v)&&($("#hR",v).onclick=healthSheet);
-  $("#hC",v)&&($("#hC",v).onclick=async e=>{const b=e.currentTarget;b.disabled=true;const ok=await H()?.request?.();if(!ok){b.disabled=false;toast("Autorisation refusée : activez-la dans les réglages Santé");return;}
+  $("#hC",v)&&($("#hC",v).onclick=async e=>{const b=e.currentTarget;if(!consentOk())return consentSheet(()=>$("#hC")?.click());b.disabled=true;const ok=await H()?.request?.();if(!ok){b.disabled=false;toast("Autorisation refusée : activez-la dans les réglages Santé");return;}
     S.health={on:true,steps:{}};save();toast("Santé connectée");await healthPull();rerender();});
   $("#hS",v)&&($("#hS",v).onclick=async e=>{pulse(e.currentTarget);await healthPull();toast("Synchronisé");});
   $("#hX",v)&&($("#hX",v).onclick=()=>{S.health={on:false};save();rerender();toast("Santé déconnectée · données importées conservées");});}
@@ -666,7 +673,7 @@ function measureSheet(){const lm=S.measures.slice().sort((a,b)=>a.date<b.date?-1
     $("#msF",sh).onsubmit=e=>{e.preventDefault();const m={date:todayIso()};let bad=false;
       MES.forEach(([k])=>{const v=String($("#ms_"+k,sh).value).replace(",",".").trim();if(!v)return;const x=parseFloat(v);if(x>=10&&x<=250)m[k]=Math.round(x*10)/10;else bad=true;});
       if(bad){toast("Valeurs entre 10 et 250 cm");return;}if(Object.keys(m).length<2){toast("Indiquez au moins une mesure");return;}
-      S.measures=S.measures.filter(x=>!x.ex&&x.date!==m.date);S.measures.push(m);save();if(online())MBSync.pushMeasure(Object.assign({waist:null,hips:null,chest:null,arm:null,thigh:null},m));
+      S.measures=S.measures.filter(x=>!x.ex&&x.date!==m.date);S.measures.push(m);save();if(online()&&consentOk())MBSync.pushMeasure(Object.assign({waist:null,hips:null,chest:null,arm:null,thigh:null},m));
       close();if(cur()==="progres")rerender();toast("Mensurations enregistrées");};});}
 function progressCard(){return '<section class="card stack"><div class="row between"><span class="eyebrow">Photos de progression</span><button class="btn sm soft" data-pg>Ajouter</button></div><div class="chips" role="group" aria-label="Angle">'+VIEWS.map(([k,l])=>'<button class="chip" data-pv="'+k+'" aria-pressed="'+(k===pgView)+'">'+l+'</button>').join("")+'</div><div class="compare" id="pgC">'+compareIn()+'</div><p class="small mute">Photos gardées sur ce téléphone'+(online()?", copie privée pour Melvin":"")+'. Même lumière, même tenue, même angle.</p></section>';}
 function compareIn(){const L=S.progress.filter(x=>x.view===pgView).sort((a,b)=>a.date<b.date?-1:1),a=L[0],b=L.length>1?L[L.length-1]:null,lab=VIEWS.find(v=>v[0]===pgView)[1].toLowerCase();
@@ -681,7 +688,7 @@ function progressSheet(){let blob=null,view=pgView;
       $("#pgV",sh).innerHTML='<span class="preview" style="aspect-ratio:3/4;background-image:url('+URL.createObjectURL(blob)+')"></span>';$("#pgA",sh).disabled=false;};
     $("#pgA",sh).onclick=async()=>{if(!blob)return;const id="g"+uid();try{await PH.put(id,blob);}catch(x){toast("Photo non enregistrée sur ce téléphone");return;}
       const rec={id,date:todayIso(),view};S.progress.push(rec);save();pgView=view;close();if(cur()==="progres")rerender();toast("Photo ajoutée");
-      if(online()){const path=await MBSync.uploadPhoto(blob,"progress");if(path){rec.path=path;save();}}};});}
+      if(online()&&consentOk()){const path=await MBSync.uploadPhoto(blob,"progress");if(path){rec.path=path;save();}}};});}
 
 /* ───────── Rappels : notifications locales via native.js ; dans le navigateur, export vers l'agenda (.ics ou Google Agenda) ───────── */
 /* [clé, libellé, quand, texte, jour (0 = lundi … 6 = dimanche ; absent = chaque jour)]. Séance et courses ont leurs propres jours (days). */
@@ -763,15 +770,16 @@ async function onLogin(fresh){if(!acct)return;subscribeMsgs();
   if(acct.role==="coach"){syncCoach=coachOn=true;loadSyncClients();if(fresh||cur()==="accueil")go("coach");else if(["profil","accueil"].includes(cur()))route();return;}
   if(!S.mode||S.mode==="demo"){S.mode="client";save();}
   if(fresh)go(S.example?"bilan":"journal");else if(!$(".sheet"))rerender();
-  pullPlan();pushSoon();checkUnread();pullBilling();registerPush();}
+  pullPlan();pushSoon();checkUnread();pullBilling();registerPush();pushConsent();}
 async function signOut(){if(pushTok){const t=pushTok;pushTok=null;try{await MBSync.push?.unregister?.(t);}catch(e){}}await MBSync.signOut();acct=null;S.billing=null;nCall=null;save();unsub&&unsub();unsub=null;unread=false;if(syncCoach){syncCoach=coachOn=false;sClients=null;sOpen=null;}toast("Déconnecté de votre compte");route();}
 /* Envoi en arrière-plan après chaque enregistrement (2 s de calme), seulement ce qui a changé */
 function pushSoon(){if(!online()||acct.role==="coach"||S.example)return;clearTimeout(pT);pT=setTimeout(pushNow,2000);}
-const dayPayload=d=>{const h=S.hr[d];return{log:S.log[d]||[],water:S.water[d]||0,steps:S.steps[d]||0,health:{hr:h?{avg:h.avg,min:h.min,max:h.max,resting:h.resting,hrv:h.hrv}:null,sleepMin:S.sleep[d]||null,activeKcal:S.active[d]||null},fasting:S.fasts.filter(f=>iso(new Date(f.start))===d)};};
+/* Sans accord santé (texte de MB_LEGAL.consentText) : ni pas, cœur, sommeil, cycle, poids, mensurations ni photos de progression */
+const dayPayload=d=>{const h=S.hr[d],c=cycleAt(d);return{log:S.log[d]||[],water:S.water[d]||0,steps:consentOk()?S.steps[d]||0:null,cycle:c?{day:c.day,phase:c.phase}:null,health:!consentOk()?null:{hr:h?{avg:h.avg,min:h.min,max:h.max,resting:h.resting,hrv:h.hrv}:null,sleepMin:S.sleep[d]||null,activeKcal:S.active[d]||null},fasting:S.fasts.filter(f=>iso(new Date(f.start))===d)};};
 async function pushNow(){if(!online()||S.example)return;const M=MBSync,once=(k,o,fn)=>{const j=JSON.stringify(o);if(pushed[k]===j)return;fn().then(ok=>{if(ok)pushed[k]=j;});};
   once("profile",S.profile,()=>M.pushProfile(S.profile));
   for(const d of new Set([0,1,2,3,4,5,6].map(k=>addDays(todayIso(),-k)).concat(selDate))){const p=dayPayload(d);once("day"+d,p,()=>M.pushDay(d,p));const tr=S.trainings.filter(x=>x.date===d&&!x.ex);once("tr"+d,tr,()=>M.pushTrainings(d,tr));}
-  S.weights.filter(w=>!w.ex&&w.date>=addDays(todayIso(),-30)).forEach(w=>once("w"+w.date,w,()=>M.pushWeight({date:w.date,kg:w.kg})));
+  if(consentOk())S.weights.filter(w=>!w.ex&&w.date>=addDays(todayIso(),-30)).forEach(w=>once("w"+w.date,w,()=>M.pushWeight({date:w.date,kg:w.kg})));
   const c=S.checkins.filter(x=>!x.ex).slice(-1)[0];if(c)once("c"+c.date,c,()=>M.pushCheckin(c));}
 async function pullPlan(){if(!online()||acct.role==="coach")return;const p=await MBSync.pullPlan();if(!p||typeof p!=="object")return;
   const np={kcal:+p.kcal||0,swap:p.swap&&typeof p.swap==="object"?p.swap:{},extra:Array.isArray(p.extra)?p.extra:[],note:String(p.note||""),at:p.at||todayIso()};
@@ -836,17 +844,23 @@ async function registerPush(){if(!native()||!billOn())return;try{const r=await M
 function onPushTap(d){const x=(d&&d.data)||{};if(x.view==="chat"){if(billOn())chatSheet();else go("journal");}else if(ALL.includes(x.view))go(x.view);}
 /* Espace coach en ligne : fiches lues sur le serveur au lieu de la base de l'artifact */
 let sClients=null,sOpen=null;
-async function loadSyncClients(){sClients=await MBSync.coach.clients();if(cur()==="coach"&&!$(".sheet"))V.coach($("#view"));}
+/* shortcut: une fiche détaillée par client pour les alertes (N requêtes), passer à une vue serveur au-delà d'une centaine de clients */
+let sDet={};
+async function loadSyncClients(){sClients=await MBSync.coach.clients();if(cur()==="coach"&&!$(".sheet"))V.coach($("#view"));
+  if(!Array.isArray(sClients))return;const L=sClients;await Promise.all(L.map(c=>Promise.resolve(MBSync.coach.client(c.id)).then(r=>{if(r)sDet[c.id]=r;}).catch(()=>{})));
+  if(L===sClients&&cur()==="coach"&&!sOpen&&!$(".sheet"))V.coach($("#view"));}
+const stOfSync=c=>({profile:Object.assign(structuredClone(PROFILE0),c.profile||{}),example:false,code:null,plan:c.plan||null});
 const syncC=c=>{const P=c.profile||{};return Object.assign({},c,{prenom:c.prenom||P.prenom||c.email||"Client",objectif:P.objectif||"forme",regime:P.regime||"omni",allergies:P.allergies||[],salle:P.salle||"",statut:c.statut||"Actif",cid:c.cid||""});};
 function syncCoachView(v){if(sOpen)return syncClientView(v);const L=(sClients||[]).map(syncC),act=L.filter(c=>c.statut==="Actif"),hasB=L.some(c=>c.billing),
     pay=L.filter(c=>["active","trialing"].includes(c.billing?.status)).length,comp=L.filter(c=>c.billing?.status==="comp").length,canPush=!!window.MBSync?.coach?.push;
   v.innerHTML='<div class="stack" style="gap:4px;padding-top:4px"><span class="eyebrow">Espace coach · '+esc(acct.email)+'</span><h1 style="font-size:1.75rem">Vos clients</h1></div>'+
    '<section class="kpis">'+(hasB?'<div class="kpi"><span class="n">'+pay+'</span><span>'+(pay>1?"abonnés actifs":"abonné actif")+(comp?" · "+comp+(comp>1?" offerts":" offert"):"")+'</span></div><div class="kpi"><span class="n">'+fmt(pay*PRICE)+' €</span><span>par mois à '+PRICE+' €</span></div>':'<div class="kpi"><span class="n">'+act.length+'</span><span>'+(act.length>1?"clients actifs":"client actif")+'</span></div><div class="kpi"><span class="n">'+fmt(act.length*tarif)+' €</span><span>par mois à '+tarif+' €</span></div>')+'<div class="kpi"><span class="n">'+L.length+'</span><span>comptes</span></div></section>'+
    (canPush&&L.length?'<button class="btn line block" id="pA"><svg aria-hidden="true"><use href="#i-bell"/></svg>Envoyer une notification à tous</button>':'')+
+   (L.length?alertsHtml(L.filter(c=>c.statut==="Actif"&&sDet[c.id]).flatMap(c=>{const r=sDet[c.id];return alertsOf(xOfSync(Object.assign({},r,{prenom:c.prenom,billing:c.billing||r.billing}),stOfSync(r)),c.id);}),"sync"):'')+
    (sClients==null?'<div class="card"><p class="mute">Chargement de vos clients…</p></div>':!L.length?'<div class="card stack"><h2>Aucun client pour l\'instant</h2><p class="small mute">Vos clients apparaissent ici dès qu\'ils se connectent à l\'appli avec leur e-mail.</p></div>':'')+
    '<div class="clients">'+L.map(c=>'<button class="client" data-so="'+esc(c.id)+'"><div class="row between"><div class="row"><span class="avatar sm">'+esc(c.prenom[0].toUpperCase())+'</span><div style="text-align:left"><h3>'+esc(c.prenom)+'</h3><p class="small mute">'+esc(c.salle||"Salle non précisée")+' · '+esc(OBJECTIFS[c.objectif]?.label||"")+'</p></div></div>'+billPill(c)+'</div>'+(callOf(c)?'<span class="meta">Prochain call : '+esc(callShort(callOf(c)))+'</span>':'')+'</button>').join("")+'</div>'+
    '<button class="lnk" id="scX" style="justify-self:start">Me déconnecter</button><p class="legal">Fiches et suivis lus sur le serveur MB NUTRITION, visibles par vous seul.</p>';
-  $$("[data-so]",v).forEach(b=>b.onclick=()=>{sOpen=b.dataset.so;V.coach(v);reveal(v);scrollTo({top:0});});$("#scX",v).onclick=signOut;$("#pA",v)&&($("#pA",v).onclick=()=>pushSheet("all","Tous mes clients",L.length));}
+  $$("[data-so],[data-ao]",v).forEach(b=>b.onclick=()=>{sOpen=b.dataset.so||b.dataset.ao;V.coach(v);reveal(v);scrollTo({top:0});});bindAlerts(v,L);$("#scX",v).onclick=signOut;$("#pA",v)&&($("#pA",v).onclick=()=>pushSheet("all","Tous mes clients",L.length));}
 const billPill=c=>{if(!c.billing)return '<span class="pill '+(c.statut==="Actif"?"ok":"")+'">'+esc(c.statut)+'</span>';const[,k,l]=billOf(c.billing.status);return '<span class="pill '+k+'"><i></i>'+l+'</span>';};
 const callOf=c=>c.nextCall?.start||null;
 const callShort=t=>{const d=new Date(t);return isNaN(d)?"":d.toLocaleDateString("fr-FR",{weekday:"short",day:"numeric",month:"short"})+" · "+hhmm(+d);};
@@ -863,25 +877,199 @@ async function syncClientView(v){v.innerHTML='<button class="lnk" id="bk" style=
   const id=sOpen,raw=await MBSync.coach.client(id);if(sOpen!==id||cur()!=="coach")return;
   if(!raw){v.innerHTML='<button class="lnk" id="bk" style="justify-self:start">← Tous les clients</button><div class="card"><p class="mute">Suivi indisponible, vérifiez la connexion.</p></div>';$("#bk",v).onclick=()=>{sOpen=null;V.coach(v);};return;}
   const rw=(sClients||[]).find(x=>x.id===id),bl=rw?.billing||raw.billing,nc=callOf(raw)||(rw&&callOf(rw)),bs=bl?.status,bEnd=frDate(bl?.periodEnd),canG=!!window.MBSync?.coach?.grantAccess;
-  const c=syncC(raw),st={profile:Object.assign(structuredClone(PROFILE0),c.profile||{}),example:false,code:null,plan:c.plan||null},W=(c.weights||[]).map(w=>({date:w.date,kg:+w.kg})).filter(w=>w.kg>0),
+  const c=syncC(raw),st=stOfSync(c),X=xOfSync(c,st),W=(c.weights||[]).map(w=>({date:w.date,kg:+w.kg})).filter(w=>w.kg>0),
     D=(c.days||[]).map(d=>{const L=(d.data&&d.data.log)||[],t=sum(L);return[d.date,Math.round(t.k),Math.round(t.p),Math.round(dayPlan(dow(d.date),st).tot.k)];}).filter(d=>d[1]>0),
     M=(c.measures||[]).slice(-1)[0],G=(c.photos||[]).filter(x=>x&&x.kind==="progress"&&x.path).slice(-6).reverse(),C=(c.checkins||[]).map(x=>Object.assign({date:x.date},x.data||{})),d7=D.slice(-7),ad=d7.length?Math.round(d7.reduce((a,x)=>a+x[1]/x[3],0)/d7.length*100):null;
-  v.innerHTML='<button class="lnk" id="bk" style="justify-self:start">← Tous les clients</button><section class="card stack"><div class="row between"><div class="row"><span class="avatar">'+esc(c.prenom[0].toUpperCase())+'</span><div><h1 style="font-size:1.5rem">'+esc(c.prenom)+'</h1><p class="small mute">'+esc(c.email||"")+' · '+esc(OBJECTIFS[c.objectif]?.label||"")+'</p></div></div>'+billPill(Object.assign({},c,{billing:bl}))+'</div><div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn sm" data-msg><svg aria-hidden="true"><use href="#i-chat"/></svg>Messages</button><button class="btn sm line" data-pl>Modifier le plan</button>'+(window.MBSync?.coach?.push?'<button class="btn sm line" data-np><svg aria-hidden="true"><use href="#i-bell"/></svg>Notification</button>':'')+'</div>'+
+  v.innerHTML='<button class="lnk" id="bk" style="justify-self:start">← Tous les clients</button><section class="card stack"><div class="row between"><div class="row"><span class="avatar">'+esc(c.prenom[0].toUpperCase())+'</span><div><h1 style="font-size:1.5rem">'+esc(c.prenom)+'</h1><p class="small mute">'+esc(c.email||"")+' · '+esc(OBJECTIFS[c.objectif]?.label||"")+phaseTxt(X.cycle)+'</p></div></div>'+billPill(Object.assign({},c,{billing:bl}))+'</div><div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn sm" data-msg><svg aria-hidden="true"><use href="#i-chat"/></svg>Messages</button><button class="btn sm line" data-pl>Modifier le plan</button>'+(window.MBSync?.coach?.push?'<button class="btn sm line" data-np><svg aria-hidden="true"><use href="#i-bell"/></svg>Notification</button>':'')+'</div>'+
    (nc?'<p class="small mute">Prochain call : <b style="color:var(--ink)">'+esc(callWhen(nc))+'</b></p>':'')+
    (bl||canG?'<div><div class="rem"><span><b>'+(bl?"Abonnement : "+billOf(bs)[0]:"Abonnement")+'</b><span>'+(bs==="comp"?"Accès offert par vous":bEnd&&bs!=="none"?(bs==="canceled"||bl.cancelAt?"Accès jusqu'au ":"Renouvellement le ")+esc(bEnd):"Plan, messages et calls sans abonnement si offert")+'</span></span><span></span>'+(canG?'<button class="sw" role="switch" id="gA" aria-checked="'+(bs==="comp")+'" aria-label="Offrir l\'accès"></button>':'')+'</div><div id="gC"></div></div>':'')+'</section>'+
-   '<section class="kpis"><div class="kpi"><span class="n">'+(W.length?dec(W[W.length-1].kg):"–")+'</span><span>kg, dernière pesée</span></div><div class="kpi"><span class="n">'+(ad!=null?ad+"%":"–")+'</span><span>de l\'objectif kcal (7 j)</span></div><div class="kpi"><span class="n">'+(M&&M.waist?dec(M.waist):"–")+'</span><span>cm de tour de taille</span></div></section>'+
+   '<section class="kpis"><div class="kpi"><span class="n">'+(W.length?dec(W[W.length-1].kg):"–")+'</span><span>kg, dernière pesée</span></div><div class="kpi"><span class="n">'+(ad!=null?ad+"%":"–")+'</span><span>de l\'objectif kcal (7 j)</span></div><div class="kpi"><span class="n">'+(M&&M.waist?dec(M.waist):"–")+'</span><span>cm de tour de taille</span></div></section>'+bilanCard(weekBilan(X,addDays(monday(todayIso()),-7)))+
    (W.length>1?'<section class="card stack"><h2>Poids</h2>'+sparkLine(W.slice(-12).map(w=>[w.date,w.kg]),"var(--weight)")+'</section>':'')+
    '<section class="card stack"><h2>Calories, 4 dernières semaines</h2>'+(D.length?daysChart(D):'<p class="small mute">Aucun repas noté.</p>')+'</section>'+
    (M?'<section class="card stack"><h2>Mensurations · '+short(M.date)+'</h2><div class="macline">'+MES.filter(([k])=>M[k]).map(([k,l])=>'<span>'+l+' <b>'+dec(M[k])+' cm</b></span>').join("")+'</div></section>':'')+
    (G.length?'<section class="card stack"><h2>Photos de progression</h2><div class="gallery">'+G.map(x=>'<figure><span class="thumb lg" data-sp="'+esc(x.path)+'" role="img" aria-label="Photo du '+short(x.date)+'"></span><figcaption>'+short(x.date)+'</figcaption></figure>').join("")+'</div></section>':'')+
    '<section class="card stack"><h2>Points hebdomadaires</h2>'+(C.length?'<ul class="hist">'+C.slice().reverse().map(x=>'<li><span><b>'+short(x.date)+'</b></span><span class="mute">Énergie '+(+x.energie||"–")+'/5 · Sommeil '+(+x.sommeil||"–")+'/5</span>'+(x.note?'<span class="mute" style="grid-column:1/-1">« '+esc(x.note)+' »</span>':'')+'</li>').join("")+'</ul>':'<p class="small mute">Aucun point reçu.</p>')+'</section>';
-  $("#bk",v).onclick=()=>{sOpen=null;V.coach(v);reveal(v);};$$("[data-sp]",v).forEach(async el=>{const u=await MBSync.photoUrl(el.dataset.sp);if(u)el.style.backgroundImage='url("'+u+'")';});$("[data-msg]",v).onclick=()=>chatSheet(c.id,c.prenom);$("[data-pl]",v).onclick=()=>planSheet(c);$("[data-np]",v)&&($("[data-np]",v).onclick=()=>pushSheet(c.id,c.prenom,1));
+  $("#bk",v).onclick=()=>{sOpen=null;V.coach(v);reveal(v);};$$("[data-sp]",v).forEach(async el=>{const u=await MBSync.photoUrl(el.dataset.sp);if(u)el.style.backgroundImage='url("'+u+'")';});$("[data-msg]",v).onclick=()=>chatSheet(c.id,c.prenom);$("[data-pl]",v).onclick=()=>planSheet(c);$("[data-np]",v)&&($("[data-np]",v).onclick=()=>pushSheet(c.id,c.prenom,1));$("[data-pdf]",v).onclick=e=>monthPdf(X,e.currentTarget);
   $("#gA",v)&&($("#gA",v).onclick=()=>{const on=bs!=="comp",C=$("#gC",v),nm=esc(c.prenom);
     C.innerHTML='<div class="stack" style="padding-top:8px"><p class="small">'+(on?"Offrir l'accès complet à "+nm+" (plan, messages, calls) sans abonnement ?":"Retirer l'accès offert à "+nm+" ? Sans abonnement, son plan, ses messages et ses calls seront verrouillés.")+'</p><div class="row" style="gap:8px"><button class="btn sm soft" id="gN">Annuler</button><button class="btn sm '+(on?"gold":"danger")+'" id="gY">'+(on?"Offrir l'accès":"Retirer l'accès")+'</button></div></div>';
     $("#gN",v).focus();$("#gN",v).onclick=()=>{C.innerHTML="";};
     $("#gY",v).onclick=async e=>{e.currentTarget.disabled=true;let ok=false;try{ok=await MBSync.coach.grantAccess(c.id,on);}catch(_){}
       if(!ok){toast("Modification impossible, vérifiez la connexion");C.innerHTML="";return;}toast(on?"Accès offert à "+c.prenom:"Accès offert retiré");
       if(rw)rw.billing=Object.assign({},bl,{status:on?"comp":"none"});V.coach(v);loadSyncClients();};});}
+
+/* ───────── RGPD : accord santé (MB_LEGAL, legal.js), mentions, export, suppression ───────── */
+const LG=()=>window.MB_LEGAL||null;
+const consentOk=()=>!!(S.consent&&S.consent.health&&(!LG()||S.consent.version===LG().version));
+const needConsent=()=>!!LG()&&!!S.mode&&!S.example&&!(online()&&acct.role==="coach")&&(!S.consent||S.consent.version!==LG().version);
+let consentAsked=false;
+function pushConsent(){if(online()&&acct.role!=="coach"&&S.consent)try{MBSync.consent?.set?.({health:S.consent.health,version:S.consent.version});}catch(e){}}
+function setConsent(on){S.consent={health:!!on,version:LG()?.version||"",at:new Date().toISOString()};save();pushConsent();}
+function consentSheet(then){consentAsked=true;
+  sheet('<div class="stack"><span class="eyebrow c-hr">Données de santé</span><p class="small consent">'+esc(LG()?.consentText||"")+'</p><button class="lnk" id="csP" style="justify-self:start">Mentions et confidentialité</button><div class="row" style="gap:8px"><button class="btn soft" id="csN" style="flex:1">Plus tard</button><button class="btn gold" id="csY" style="flex:1">Accepter</button></div></div>',(sh,close)=>{
+    $("#csN",sh).onclick=()=>{setConsent(false);close();};
+    $("#csY",sh).onclick=()=>{setConsent(true);close();if(then)setTimeout(then,240);else{healthPull();if(!$(".sheet"))rerender();}};
+    $("#csP",sh).onclick=()=>{close();setTimeout(()=>privacySheet(()=>consentSheet(then)),240);};});}
+function maybeConsent(){if(consentAsked||!needConsent()||!["journal","plan","progres","profil"].includes(cur()))return;consentAsked=true;
+  setTimeout(()=>{if(!$(".sheet")&&needConsent())consentSheet();else consentAsked=false;},700);}
+/* privacyHtml : texte statique de legal.js, jamais de donnée saisie */
+function privacySheet(back){sheet('<div class="stack legal-page">'+(LG()?.privacyHtml||'<p class="small mute">Mentions indisponibles.</p>')+'<button class="btn block" id="pvOk">Fermer</button></div>',(sh,close)=>{$("#pvOk",sh).onclick=()=>{close();if(back)setTimeout(back,240);};});}
+/* Fichier : partage natif, sinon capacité « downloads » de l'artifact, sinon téléchargement du navigateur */
+async function saveBlob(blob,fn,mime){try{if(await window.MBNative?.saveFile?.(blob,fn,mime))return true;}catch(e){}
+  if(dl){try{const r=await dl.save({filename:fn,data:blob});if(r&&r.status==="saved")toast("Fichier enregistré");return true;}catch(e){if(e&&e.code==="declined")return false;}}
+  try{const u=URL.createObjectURL(blob),A=document.createElement("a");A.href=u;A.download=fn;document.body.appendChild(A);A.click();A.remove();setTimeout(()=>URL.revokeObjectURL(u),4000);toast("Fichier créé");return true;}catch(e){toast("Téléchargement impossible ici");return false;}}
+async function exportData(btn){btn.disabled=true;const out={app:"MB NUTRITION",exportedAt:new Date().toISOString(),local:S};
+  if(online()){try{let r=await MBSync.account?.export?.();if(r instanceof Blob)r=JSON.parse(await r.text());else if(typeof r==="string")r=await (await fetch(r)).json();if(r)out.server=r;}catch(e){}}
+  await saveBlob(new Blob([JSON.stringify(out,null,2)],{type:"application/json"}),"mes-donnees-mb-nutrition-"+todayIso()+".json","application/json");btn.disabled=false;}
+
+/* ───────── Données d'un client sous une forme commune (appli, fiche artifact, compte en ligne) : bilan, alertes, PDF ───────── */
+const byDate=(a,b)=>a.date<b.date?-1:a.date>b.date?1:0;
+function xOfS(){const d={},tp=[0,1,2,3,4,5,6].map(i=>dayPlan(i));
+  for(let k=0;k<62;k++){const day=addDays(todayIso(),-k),e=eatenOf(day),dp=tp[dow(day)];d[day]={k:e.k,p:e.p,tk:dp.tot.k+(cyPlus(day)?100:0),tp:dp.tot.p,steps:S.steps[day]||0,sleep:S.sleep[day]||0};}
+  return{name:S.profile.prenom||"",obj:S.profile.objectif,days:d,tr:S.trainings.map(t=>({date:t.date,min:+t.min||0})),trKnown:true,planned:+S.profile.seances||3,stepsGoal:S.profile.stepsGoal||8000,
+    weights:S.weights.slice().sort(byDate),measures:S.measures.slice().sort(byDate),checkins:S.checkins.slice().sort(byDate),note:S.plan?.note||"",cycle:cycleAt(todayIso())};}
+function xOfArt(c){const sv=c.suivi||{},st=stateOf(c,planOf(c)),tp=[0,1,2,3,4,5,6].map(i=>dayPlan(i,st)),d={};
+  (sv.d||[]).forEach(([day,k,p,tk])=>{d[day]={k:+k||0,p:+p||0,tk:+tk||tp[dow(day)].tot.k,tp:tp[dow(day)].tot.p};});
+  (sv.p||[]).forEach(([day,n])=>{(d[day]=d[day]||{k:0,p:0}).steps=+n||0;});
+  return{name:c.prenom||"",obj:c.objectif,days:d,tr:(sv.s||[]).map(t=>({date:t[0],min:+t[2]||0})),trKnown:!!sv.at,planned:+sv.se||3,stepsGoal:8000,weights:(sv.w||[]).map(([date,kg])=>({date,kg:+kg})).sort(byDate),measures:[],
+    checkins:(sv.c||[]).map(([date,energie,sommeil,faim,respect,note])=>({date,energie,sommeil,note})),lastCi:c.dernierPoint||"",start:c.debut||"",note:c.plan?.note||"",cycle:Array.isArray(sv.cy)&&PHASES[sv.cy[1]]?{day:+sv.cy[0],phase:sv.cy[1]}:null,pay:null};}
+function xOfSync(c,st){const d={},tp=[0,1,2,3,4,5,6].map(i=>dayPlan(i,st));let cy=null;
+  (c.days||[]).forEach(x=>{const D=x.data||{},t=sum(Array.isArray(D.log)?D.log:[]),dp=tp[dow(x.date)];d[x.date]={k:t.k,p:t.p,tk:dp.tot.k,tp:dp.tot.p,steps:+D.steps||0,sleep:+(D.health&&D.health.sleepMin)||0};
+    if(D.cycle&&PHASES[D.cycle.phase]&&(!cy||x.date>cy.date))cy=Object.assign({date:x.date},D.cycle);});
+  return{name:c.prenom||st.profile.prenom||"",obj:st.profile.objectif,days:d,tr:(c.trainings||[]).flatMap(r=>(Array.isArray(r.data)?r.data:[]).map(t=>({date:r.date,min:+t.min||0}))),trKnown:Array.isArray(c.trainings),
+    planned:+st.profile.seances||3,stepsGoal:+st.profile.stepsGoal||8000,weights:(c.weights||[]).map(w=>({date:w.date,kg:+w.kg})).filter(w=>w.kg>0).sort(byDate),measures:(c.measures||[]).slice().sort(byDate),
+    checkins:(c.checkins||[]).map(x=>Object.assign({date:x.date},x.data||{})).sort(byDate),note:c.plan?.note||"",cycle:cy&&cy.date>=addDays(todayIso(),-3)?cy:null,pay:c.billing?.status||null};}
+
+/* ───────── Bilan de la semaine : calculé par règles, sans IA ───────── */
+function weekBilan(X,mon){const days=[0,1,2,3,4,5,6].map(i=>addDays(mon,i)),end=days[6],D=days.map(d=>X.days[d]).filter(Boolean),L=D.filter(x=>x.k>0),avg=a=>a.length?a.reduce((s,x)=>s+x,0)/a.length:0;
+  const kp=L.length?Math.round(avg(L.map(x=>x.k/(x.tk||1)))*100):null,pa=L.length?Math.round(avg(L.map(x=>x.p))):null,lt=L.filter(x=>x.tp),pt=lt.length?Math.round(avg(lt.map(x=>x.tp))):null;
+  const sl=D.filter(x=>x.sleep>0).map(x=>x.sleep),stp=D.filter(x=>x.steps>0).map(x=>x.steps),wIn=X.weights.filter(w=>w.date>=mon&&w.date<=end).pop(),wB=X.weights.filter(w=>w.date<mon).pop();
+  const r={mon,n:L.length,kp,pa,pt,ses:X.trKnown?X.tr.filter(t=>t.date>=mon&&t.date<=end).length:null,planned:X.planned,sleep:sl.length?avg(sl):null,steps:stp.length?Math.round(avg(stp)):null,wd:wIn&&wB?Math.round((wIn.kg-wB.kg)*10)/10:null};
+  const tips=[[pt&&pa!=null&&pa<pt*.85,"Ajoutez une source de protéines au petit-déjeuner."],[L.length<4,"Notez au moins 5 jours sur 7."],[kp!=null&&kp<85,"Ajoutez la collation prévue les jours de séance."],[kp!=null&&kp>115,"Portions au-dessus du plan : gardez-le au dîner."],
+    [r.ses!=null&&r.ses<X.planned,"Bloquez vos séances dans l'agenda dès lundi."],[r.sleep&&r.sleep<420,"Couchez-vous 30 min plus tôt."],[r.steps&&r.steps<X.stepsGoal*.8,"Ajoutez 15 min de marche par jour."]].filter(x=>x[0]).map(x=>x[1]);
+  r.tips=(tips.length?tips:["Belle semaine : gardez le même rythme."]).slice(0,2);return r;}
+function bilanCard(r){const k=(c,l,val,u)=>'<div class="kpi"><span class="eyebrow '+c+'">'+l+'</span><span class="n">'+val+(u?'<small> '+u+'</small>':'')+'</span></div>',sg=x=>x>0?"+":x<0?"−":"";
+  return '<section class="card stack wb"><div class="row between"><span class="eyebrow">Semaine du '+short(r.mon)+'</span><button class="btn sm soft" data-pdf><svg aria-hidden="true"><use href="#i-download"/></svg>Bilan du mois (PDF)</button></div><div class="kpis">'+
+   k("c-kcal","Calories",r.kp??"–","%")+k("c-prot","Protéines",r.pa!=null?fmt(r.pa):"–",r.pt?"/ "+fmt(r.pt)+" g":"g")+k("c-train","Séances",r.ses??"–","/ "+r.planned)+
+   k("c-sleep","Sommeil",r.sleep?hm(r.sleep):"–","")+k("c-weight","Poids",r.wd!=null?sg(r.wd)+dec(Math.abs(r.wd)):"–","kg")+k("c-steps","Pas",r.steps?fmt(r.steps):"–","/ j")+'</div><ul class="tips">'+r.tips.map(t=>'<li>'+esc(t)+'</li>').join("")+'</ul></section>';}
+
+/* ───────── Alertes coach : seuils réglables (base de l'artifact coach/main, ou ce téléphone en mode compte) ───────── */
+const SEUILS0={log:3,poids:3,seances:50,point:10},SK="mbn.coach.seuils";
+let seuils=Object.assign({},SEUILS0);try{Object.assign(seuils,JSON.parse(localStorage.getItem(SK)||"{}"));}catch(e){}
+function alertsOf(X,id){const A=[],t=todayIso(),T=seuils,add=(sev,why,n)=>A.push({id,name:X.name||"Client",sev,why,n:n||0});
+  if(X.pay==="past_due")add(4,"Paiement en échec");
+  const lg=Object.keys(X.days).filter(d=>X.days[d].k>0).sort().pop()||X.start;if(lg){const n=dayDiff(t,lg);if(n>=T.log)add(3,n+" j sans journal",n);}
+  const ci=X.lastCi||X.checkins.map(c=>c.date).sort().pop()||X.start;if(ci){const n=dayDiff(t,ci);if(n>T.point)add(2,"Point en retard · "+n+" j",n);}
+  /* séances : jugées à partir du jeudi, avant la semaine est trop entamée pour conclure */
+  if(X.trKnown&&dow(t)>=3&&X.planned>0){const mon=monday(t),n=X.tr.filter(x=>x.date>=mon&&x.date<=t).length;if(n*100<X.planned*T.seances)add(2,n+" / "+X.planned+" séances",X.planned-n);}
+  if(X.obj==="perte"||X.obj==="muscle"){const W=X.weights.filter(w=>w.date>=addDays(t,-7*T.poids-3));
+    if(W.length>=2&&dayDiff(W[W.length-1].date,W[0].date)>=7*T.poids-4){const d=W[W.length-1].kg-W[0].kg;if(X.obj==="perte"?d>-.3:d<.3)add(1,"Poids stable · "+T.poids+" sem.");}}
+  return A;}
+const relance=n=>"Bonjour "+String(n||"").split(" ")[0]+", petit point de la semaine ? Envoie-moi ton suivi depuis l'appli MB NUTRITION.";
+function alertsHtml(A,mode){A.sort((a,b)=>b.sev-a.sev||b.n-a.n);
+  return '<section class="card stack alerts"><div class="row between"><h2>À traiter <span class="cntb'+(A.length?'':' z')+'">'+A.length+'</span></h2><button class="lnk" id="thr">Seuils</button></div>'+
+   (A.length?'<ul class="al">'+A.map(a=>'<li><span class="sev s'+a.sev+'" aria-hidden="true"></span><span class="aw"><b>'+esc(a.name)+'</b><span>'+esc(a.why)+'</span></span><span class="acts">'+
+     (mode==="sync"?'<button class="btn sm soft" data-aw="'+esc(a.id)+'">Écrire</button>':'<a class="btn sm soft" href="'+esc(waAny(relance(a.name)))+'" target="_blank" rel="noopener" aria-label="Relancer '+esc(a.name)+' sur WhatsApp"><svg aria-hidden="true"><use href="#i-wa"/></svg>Relancer</a>')+
+     '<button class="btn sm line" data-ao="'+esc(a.id)+'" aria-label="Ouvrir la fiche de '+esc(a.name)+'">Ouvrir</button></span></li>').join("")+'</ul>':'<p class="small mute">Rien à traiter.</p>')+'</section>';}
+function bindAlerts(v,L){$("#thr",v)&&($("#thr",v).onclick=seuilsSheet);
+  $$("[data-aw]",v).forEach(b=>b.onclick=()=>{const c=(L||[]).find(x=>x.id===b.dataset.aw);chatSheet(b.dataset.aw,c?.prenom);});}
+function seuilsSheet(){const s=Object.assign({},seuils),R=[["log","Sans journal","j",1,14,1],["poids","Poids stable","sem.",1,8,1],["seances","Séances faites","%",10,100,10],["point","Point en retard","j",3,30,1]];
+  sheet('<div class="stack"><span class="eyebrow">Alertes</span><h2>Seuils</h2><div>'+R.map(([k,l])=>'<div class="rem"><span><b>'+l+'</b></span><button class="btn sm soft" data-tk="'+k+'" data-dd="-1" aria-label="'+l+' : moins">−</button><span class="thr"><output id="th_'+k+'"></output><button class="btn sm soft" data-tk="'+k+'" data-dd="1" aria-label="'+l+' : plus">+</button></span></div>').join("")+'</div><button class="btn gold block" id="thS">Enregistrer</button></div>',(sh,close)=>{
+    const upd=()=>R.forEach(([k,,u])=>{$("#th_"+k,sh).textContent=s[k]+" "+u;});upd();
+    $$("[data-tk]",sh).forEach(b=>b.onclick=()=>{const r=R.find(x=>x[0]===b.dataset.tk);s[r[0]]=Math.max(r[3],Math.min(r[4],s[r[0]]+ +b.dataset.dd*r[5]));upd();});
+    $("#thS",sh).onclick=async()=>{seuils=s;try{if(syncCoach||!db)localStorage.setItem(SK,JSON.stringify(s));else await db.doc("coach/main").set({tarif,seuils:s});}catch(e){toast("Enregistrement impossible");return;}close();toast("Seuils enregistrés");if(cur()==="coach")V.coach($("#view"));};});}
+
+/* ───────── Badges : calculés depuis le journal, S.badges = {id: date d'obtention} ───────── */
+const BADGES=[["j3","3 j de suite","i-flame","kcal"],["j7","7 j de suite","i-flame","kcal"],["j30","30 j de suite","i-flame","kcal"],["p5","Prot. ×5","i-ring","prot"],["s10","10 séances","i-dumbbell","train"],["s50","50 séances","i-dumbbell","train"],["k100","100k pas","i-steps","steps"],["e7","Eau 7 j","i-drop","water"],["w1","1re pesée","i-scale","weight"],["m2","−2 kg","i-scale","weight"]];
+function bestRun(days){let run=0,best=0,prev=null;days.sort().forEach(d=>{run=prev&&addDays(prev,1)===d?run+1:1;best=Math.max(best,run);prev=d;});return best;}
+function earnedNow(){const E=[],days=Object.keys(S.log).filter(d=>dayLog(d).some(e=>!e.ex)),run=bestRun(days.slice()),tp=[0,1,2,3,4,5,6].map(i=>dayPlan(i).tot.p);
+  if(run>=3)E.push("j3");if(run>=7)E.push("j7");if(run>=30)E.push("j30");
+  if(days.filter(d=>eatenOf(d).p>=tp[dow(d)]*.95).length>=5)E.push("p5");
+  const n=S.trainings.filter(t=>!t.ex).length;if(n>=10)E.push("s10");if(n>=50)E.push("s50");
+  const wk={};Object.entries(S.steps||{}).forEach(([d,x])=>{const m=monday(d);wk[m]=(wk[m]||0)+(+x||0);});if(Object.values(wk).some(x=>x>=1e5))E.push("k100");
+  if(bestRun(Object.keys(S.water).filter(d=>S.water[d]>=8))>=7)E.push("e7");
+  const W=S.weights.filter(w=>!w.ex).sort(byDate);if(W.length)E.push("w1");if(S.profile.objectif==="perte"&&W.length>1&&W[0].kg-Math.min(...W.map(w=>w.kg))>=2)E.push("m2");
+  return E;}
+/* premier calcul silencieux (badges déjà mérités avant la mise à jour), ensuite un toast par nouveau badge */
+function badgeCheck(){const init=!S.badges,B=S.badges||(S.badges={});let nw=null;for(const id of earnedNow())if(!B[id]){B[id]=todayIso();nw=id;}
+  if(nw&&!init)setTimeout(()=>toast("Badge : "+BADGES.find(b=>b[0]===nw)[1]),1200);}
+function badgesCard(){if(S.example)return "";const B=S.badges||{},n=BADGES.filter(b=>B[b[0]]).length;
+  return '<section class="card stack"><div class="row between"><span class="eyebrow">Badges</span><span class="small mute">'+n+' / '+BADGES.length+'</span></div><div class="badges">'+BADGES.map(([id,l,ic,c])=>'<span class="bdg'+(B[id]?' on':'')+'" style="--c:var(--'+c+')" role="img" aria-label="'+esc(l)+(B[id]?', obtenu le '+short(B[id]):', à obtenir')+'"><span class="bi"><svg aria-hidden="true"><use href="#'+ic+'"/></svg></span><small aria-hidden="true">'+esc(l)+'</small></span>').join("")+'</div></section>';}
+
+/* ───────── Cycle (femmes, sur demande, accord santé requis) : saisie manuelle des règles ───────── */
+const PHASES={menstruelle:["Menstruelle","Poids parfois plus haut : eau retenue, pas de gras."],folliculaire:["Folliculaire","Énergie souvent en hausse."],ovulatoire:["Ovulatoire","Pic d'énergie fréquent."],luteale:["Lutéale","Faim souvent plus forte, eau retenue possible."]};
+const cycleOn=()=>S.profile.sexe==="f"&&!!S.cycle?.on&&consentOk();
+const cycleStarts=()=>[...new Set(S.cycle?.starts||[])].filter(d=>/^\d{4}-\d\d-\d\d$/.test(d)).sort();
+function cycleLen(st){const g=[];for(let i=1;i<st.length;i++){const n=dayDiff(st[i],st[i-1]);if(n>=20&&n<=45)g.push(n);}const L=g.slice(-6);return L.length?Math.round(L.reduce((a,b)=>a+b,0)/L.length):28;}
+/* phase estimée : règles J1-5, ovulation vers longueur − 14 (±1 j), lutéale ensuite ; inconnue 10 j après la date attendue */
+function cycleAt(d){if(!cycleOn())return null;const all=cycleStarts(),s=all.filter(x=>x<=d).pop();if(!s)return null;const len=cycleLen(all),day=dayDiff(d,s)+1;if(day>len+10)return null;
+  const ov=len-14;return{day,len,phase:day<=5?"menstruelle":day<ov-1?"folliculaire":day<=ov+1?"ovulatoire":"luteale"};}
+const cyPlus=d=>!!(S.cycle?.plus?.[d]&&cycleAt(d)?.phase==="luteale");
+const phaseTxt=c=>c&&PHASES[c.phase]?" · J"+(+c.day||"?")+" "+PHASES[c.phase][0].toLowerCase():"";
+function periodToday(){const t=todayIso(),c=S.cycle,l=cycleStarts().pop();if(l&&dayDiff(t,l)<10){toast("Règles notées le "+short(l));return;}
+  c.starts=[...cycleStarts(),t].slice(-24);save();toast("Règles notées",()=>{c.starts=c.starts.filter(x=>x!==t);save();rerender();});rerender();}
+function cycleRow(){if(!cycleOn()||S.example)return "";const c=cycleAt(selDate);
+  if(!c)return '<div class="cyc"><button class="pill" data-cy><svg aria-hidden="true"><use href="#i-cycle"/></svg>Cycle · règles à noter</button></div>';
+  const lut=c.phase==="luteale",on=cyPlus(selDate);
+  return '<div class="cyc"><button class="pill cy" data-cy><svg aria-hidden="true"><use href="#i-cycle"/></svg>J'+c.day+' · '+PHASES[c.phase][0]+'</button>'+(lut?'<button class="pill plus100" data-cyp aria-pressed="'+on+'">'+(on?'<svg aria-hidden="true"><use href="#i-check"/></svg>':'')+'+100 kcal · collation</button>':'')+'</div>';}
+function bindCycle(v){$("[data-cy]",v)&&($("[data-cy]",v).onclick=cycleSheet);
+  $("[data-cyp]",v)&&($("[data-cyp]",v).onclick=()=>{const P=S.cycle.plus||(S.cycle.plus={}),d=selDate;if(P[d])delete P[d];else P[d]=true;Object.keys(P).forEach(k=>{if(k<addDays(todayIso(),-60))delete P[k];});save();rerender();toast(P[d]?"+100 kcal ajoutées à l'objectif du jour":"Objectif du jour inchangé");});}
+function cycleSheet(){const c=cycleAt(todayIso());
+  sheet('<div class="stack"><span class="eyebrow c-fat">Cycle</span><h2>'+(c?"Jour "+c.day+" · "+PHASES[c.phase][0]:"Cycle")+'</h2>'+(c?'<p class="small">'+PHASES[c.phase][1]+'</p><p class="small mute">Cycle moyen : '+c.len+' j</p>':'<p class="small mute">Notez le premier jour de vos règles.</p>')+'<button class="btn block" id="cyT">Règles aujourd\'hui</button><p class="legal">Repère indicatif, pas un avis médical.</p></div>',(sh,close)=>{$("#cyT",sh).onclick=()=>{close();periodToday();};});}
+function cycleCard(){if(S.profile.sexe!=="f"||S.example)return "";const on=cycleOn(),c=cycleAt(todayIso());
+  return '<section class="card stack"><div class="rem"><span><b>Suivi du cycle</b><span>'+(on&&c?"J"+c.day+" · "+PHASES[c.phase][0]+" · cycle "+c.len+" j":on?"Notez vos règles":"Phase, faim, poids")+'</span></span><span></span><button class="sw" role="switch" id="cyS" aria-checked="'+on+'" aria-label="Suivi du cycle"></button></div>'+(on?'<button class="btn sm soft" id="cyM" style="justify-self:start">Règles aujourd\'hui</button>':'')+'</section>';}
+function bindCycleCard(v){$("#cyM",v)&&($("#cyM",v).onclick=periodToday);
+  $("#cyS",v)&&($("#cyS",v).onclick=()=>{const on=!cycleOn(),set=()=>{S.cycle.on=on;save();rerender();};if(on&&!consentOk())return consentSheet(set);set();});}
+
+/* ───────── Widget iPhone « Anneaux du jour » : après chaque enregistrement qui change les totaux du jour ───────── */
+let wT=null,wLast="";
+function widgetSoon(){if(!window.MBNative?.widget?.update)return;const t=todayIso(),e=eatenOf(t),dp=dayPlan(dow(t)),
+  o={kcal:Math.round(e.k),kcalGoal:Math.round(dp.tot.k+(cyPlus(t)?100:0)),prot:Math.round(e.p),protGoal:Math.round(dp.tot.p),steps:S.steps[t]||0,stepsGoal:S.profile.stepsGoal||8000,date:t},j=JSON.stringify(o);
+  if(j===wLast)return;wLast=j;clearTimeout(wT);wT=setTimeout(()=>{try{Promise.resolve(MBNative.widget.update(o)).catch(()=>{});}catch(e){}},800);}
+
+/* ───────── PDF du mois (jsPDF chargé à la demande) ───────── */
+let pdfLib=null;
+function loadPdf(){return pdfLib||(pdfLib=new Promise((ok,ko)=>{if(window.jspdf)return ok(window.jspdf);const s=document.createElement("script");s.src="vendor/jspdf.umd.min.js";
+  s.onload=()=>window.jspdf?ok(window.jspdf):ko(new Error("jspdf"));s.onerror=()=>{pdfLib=null;ko(new Error("jspdf"));};document.head.appendChild(s);}));}
+/* couleurs claires des tokens d'app.css (le PDF s'imprime en clair, quel que soit le thème) */
+const PC={ink:[11,11,15],mute:[106,106,118],line:[228,228,234],bg:[242,242,245],sunk:[224,224,230],kcal:[255,90,31],kcalT:[204,54,0],prot:[47,123,255],protT:[22,96,224],steps:[32,196,99],stepsT:[21,126,64],weight:[155,92,246],weightT:[139,65,245],train:[245,183,0],trainT:[140,105,0],sleep:[88,86,214]};
+/* polices standard du PDF (WinAnsi) : pas d'espaces fines ni de caractères hors Latin-1 */
+const pt=s=>String(s??"").replace(/[  ]/g," ").replace(/œ/g,"oe").replace(/Œ/g,"OE").replace(/[–—−]/g,"-").replace(/[’]/g,"'").replace(/…/g,"...").replace(/[^\x20-\xFF]/g,"");
+function drawPdf(doc,X){const M=16,W=178,to=todayIso(),from=addDays(to,-29),days=Array.from({length:30},(_,i)=>addDays(from,i)),D=days.map(d=>X.days[d]||{}),L=D.filter(x=>x.k>0),avg=a=>a.length?a.reduce((s,v)=>s+v,0)/a.length:0;let y=18;
+  const T=(s,x,yy,o={})=>{doc.setFont("helvetica",o.b?"bold":"normal");doc.setFontSize(o.s||10);doc.setTextColor(...(o.c||PC.ink));doc.text(pt(s),x,yy,o.a?{align:o.a}:undefined);};
+  const need=h=>{if(y+h>282){doc.addPage();y=18;}};
+  T("MB NUTRITION",M,y,{b:1,s:9,c:PC.mute});T(short(from)+" - "+short(to),M+W,y,{s:9,c:PC.mute,a:"right"});y+=11;
+  T(X.name||"Client",M,y,{b:1,s:22});y+=7;T("Bilan du mois · "+parse(to).toLocaleDateString("fr-FR",{month:"long",year:"numeric"}),M,y,{s:11,c:PC.mute});y+=8;
+  const W30=X.weights.filter(w=>w.date>=from&&w.date<=to),wb=X.weights.filter(w=>w.date<from).pop()||W30[0],wl=W30[W30.length-1],wd=wl&&wb&&wl!==wb?wl.kg-wb.kg:null,st=D.filter(x=>x.steps>0).map(x=>x.steps),sl=D.filter(x=>x.sleep>0).map(x=>x.sleep);
+  const K=[["Calories",L.length?Math.round(avg(L.map(x=>x.k/(x.tk||1)))*100)+" %":"-","de l'objectif, "+L.length+" j notés",PC.kcalT],["Protéines",L.length?fmt(avg(L.map(x=>x.p)))+" g":"-","par jour",PC.protT],["Séances",X.trKnown?String(X.tr.filter(t=>t.date>=from&&t.date<=to).length):"-","sur 30 jours",PC.trainT],
+    ["Poids",wl?dec(wl.kg)+" kg":"-",wd!=null?(wd>0?"+":"")+dec(wd)+" kg sur le mois":"dernière pesée",PC.weightT],["Pas",st.length?fmt(avg(st)):"-","par jour",PC.stepsT],["Sommeil",sl.length?hm(avg(sl)):"-","par nuit",PC.sleep]];
+  const bw=(W-8)/3;K.forEach(([l,val,sub,c],i)=>{const x=M+(i%3)*(bw+4),yy=y+Math.floor(i/3)*24;doc.setFillColor(...PC.bg);doc.roundedRect(x,yy,bw,20,3,3,"F");T(l.toUpperCase(),x+4,yy+6,{b:1,s:7,c});T(val,x+4,yy+13.5,{b:1,s:14});T(sub,x+4,yy+17.8,{s:7,c:PC.mute});});y+=50;
+  const chart=(title,c,h,fn)=>{need(h+12);T(title.toUpperCase(),M,y,{b:1,s:8,c});y+=5;fn(M,y,W,h);y+=h+12;};
+  const bars=(vals,goal,c)=>(x0,y0,w,h)=>{const top=Math.max(goal||0,...vals,1)*1.1,bwd=w/vals.length,yv=v=>y0+h-v/top*h;doc.setDrawColor(...PC.line);doc.setLineWidth(.2);doc.line(x0,y0+h,x0+w,y0+h);
+    vals.forEach((v,i)=>{if(v>0){doc.setFillColor(...c);doc.roundedRect(x0+i*bwd+bwd*.18,yv(v),bwd*.64,y0+h-yv(v),.8,.8,"F");}});
+    if(goal){doc.setDrawColor(...PC.mute);doc.setLineDashPattern([1,1],0);doc.line(x0,yv(goal),x0+w,yv(goal));doc.setLineDashPattern([],0);T(fmt(goal),x0+w,yv(goal)-1,{s:6.5,c:PC.mute,a:"right"});}
+    T(short(days[0]),x0,y0+h+4,{s:6.5,c:PC.mute});T(short(days[days.length-1]),x0+w,y0+h+4,{s:6.5,c:PC.mute,a:"right"});};
+  if(W30.length>1)chart("Poids",PC.weightT,30,(x0,y0,w,h)=>{const v=W30.map(p=>p.kg),lo=Math.min(...v)-.5,hi=Math.max(...v)+.5,px=d=>x0+dayDiff(d,from)/29*w,py=k=>y0+h-(k-lo)/(hi-lo)*h;
+    doc.setDrawColor(...PC.weight);doc.setLineWidth(.7);for(let i=1;i<W30.length;i++)doc.line(px(W30[i-1].date),py(W30[i-1].kg),px(W30[i].date),py(W30[i].kg));
+    doc.setFillColor(...PC.weight);W30.forEach(p=>doc.circle(px(p.date),py(p.kg),.9,"F"));T(dec(W30[0].kg)+" kg",x0,y0+h+4,{s:6.5,c:PC.mute});T(dec(wl.kg)+" kg",x0+w,y0+h+4,{s:6.5,c:PC.mute,a:"right"});});
+  chart("Calories par jour",PC.kcalT,32,bars(D.map(x=>x.k||0),Math.round(avg(D.filter(x=>x.tk).map(x=>x.tk))),PC.kcal));
+  if(st.length)chart("Pas par jour",PC.stepsT,26,bars(D.map(x=>x.steps||0),X.stepsGoal,PC.steps));
+  const Ms=X.measures.filter(m=>m.date<=to),m1=Ms.filter(m=>m.date>=from)[0]||Ms[0],m2=Ms[Ms.length-1];
+  if(m2){need(24);T("MENSURATIONS",M,y,{b:1,s:8,c:PC.weightT});y+=6;MES.filter(([k])=>m2[k]).forEach(([k,l],i)=>{const x=M+(i%3)*(W/3),yy=y+Math.floor(i/3)*6;T(l+" : "+(m1&&m1!==m2&&m1[k]?dec(m1[k])+" > ":"")+dec(m2[k])+" cm",x,yy,{s:9});});y+=6*Math.ceil(MES.filter(([k])=>m2[k]).length/3)+5;}
+  const C=X.checkins.filter(c=>c.date>=from).slice(-4);
+  if(C.length){need(10+C.length*7);T("POINTS DE LA SEMAINE",M,y,{b:1,s:8,c:PC.mute});y+=6;C.forEach(c=>{need(7);T(short(c.date),M,y,{b:1,s:9});T("Énergie "+(+c.energie||"-")+"/5 · Sommeil "+(+c.sommeil||"-")+"/5",M+22,y,{s:9});
+    if(c.note){const ln=doc.splitTextToSize(pt("« "+c.note+" »"),W-80);T(ln[0]+(ln.length>1?"...":""),M+80,y,{s:8.5,c:PC.mute});}y+=7;});y+=3;}
+  if(X.note){const ln=doc.splitTextToSize(pt("« "+X.note+" »"),W);need(10+ln.length*5);T("MOT DE MELVIN",M,y,{b:1,s:8,c:PC.mute});y+=6;doc.setFont("helvetica","normal");doc.setFontSize(10);doc.setTextColor(...PC.ink);doc.text(ln,M,y);y+=ln.length*5+3;}
+  const n=doc.getNumberOfPages();for(let i=1;i<=n;i++){doc.setPage(i);T(window.MB_LEGAL?.short||"Valeurs indicatives. Pas un suivi médical.",M,290,{s:7,c:PC.mute});T(i+" / "+n,M+W,290,{s:7,c:PC.mute,a:"right"});}}
+async function monthPdf(X,btn){if(btn)btn.disabled=true;
+  try{const{jsPDF}=await loadPdf(),doc=new jsPDF({unit:"mm",format:"a4"});drawPdf(doc,X);const slug=String(X.name||"client").toLowerCase().normalize("NFD").replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"")||"client";
+    await saveBlob(doc.output("blob"),"bilan-"+slug+"-"+todayIso().slice(0,7)+".pdf","application/pdf");}
+  catch(e){toast("PDF impossible pour le moment");}finally{if(btn)btn.disabled=false;}}
+
+/* Ciqual (foods.js) : objets {id,n,k,p,g,l,r,src} ; la table de base garde sa propre clé */
+function cqItem(a){if(!a||typeof a!=="object")return null;const o=Array.isArray(a)?{id:a[0],n:a[1],k:a[2],p:a[3],g:a[4],l:a[5],r:a[6],src:"ciqual"}:a,k=+(o.k??o.kcal);
+  if(!o.n||!(k>=0&&k<1000))return null;if(o.src==="base"&&FOODS[o.id])return{key:o.id,n:FOODS[o.id].n};
+  return{key:"q"+o.id,n:String(o.n).slice(0,80),k,p:+o.p||0,g:+o.g||0,l:+o.l||0,r:o.r||"",src:"ciqual"};}
+const openExt=u=>{try{if(window.MBNative?.openUrl)return MBNative.openUrl(u);}catch(e){}window.open(u,"_blank","noopener");};
 
 /* ───────── Démarrage ───────── */
 S=load();save();applyTheme();renderTabs();addEventListener("hashchange",route);
