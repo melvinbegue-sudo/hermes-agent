@@ -3,7 +3,8 @@
 L'application est le site du dossier `www/`, emballé avec **Capacitor**.
 Dans l'app, elle lit **Apple Santé** (iPhone) et **Health Connect** (Android) :
 pas, fréquence cardiaque de la journée, FC au repos, VFC, sommeil, calories actives, poids.
-Elle sait aussi scanner un code-barres et envoyer des rappels.
+Elle sait aussi scanner un code-barres, envoyer des rappels (repas, séances) et recevoir les
+notifications push envoyées par le coach.
 
 ## Ce qu'il vous faut
 
@@ -54,6 +55,63 @@ npm test             # petite vérification automatique des modules santé / sca
 6. Le scanner de code-barres télécharge un petit module Google au premier usage : si le premier
    scan ne s'ouvre pas, réessayez après quelques secondes.
 
+## Notifications push (Firebase)
+
+Les push passent par **Firebase Cloud Messaging** (gratuit) sur iPhone **et** Android, via le
+plugin `@capacitor-firebase/messaging` : il donne le même type de jeton (FCM) sur les deux, et
+le serveur (fonction Supabase `send-push`) n'a qu'une seule façon d'envoyer. Sans les fichiers
+Firebase ci-dessous, l'app fonctionne normalement, simplement sans push.
+
+1. Sur **console.firebase.google.com** : créez un projet « MB NUTRITION » (Analytics inutile).
+2. **Ajouter une app iOS**, identifiant `fr.mbnutrition.app` → téléchargez
+   `GoogleService-Info.plist`. Dans Xcode, glissez-le dans le dossier **App/App** (à côté
+   d'`Info.plist`), cochez **Copy items if needed** et la cible **App**. (Le copier seulement
+   dans le dossier ne suffit pas : Xcode doit l'ajouter au projet.)
+3. **Ajouter une app Android**, nom de package `fr.mbnutrition.app` → téléchargez
+   `google-services.json` dans `android/app/`. Rien d'autre à faire : le projet active le plugin
+   Google Services seulement si ce fichier existe.
+4. **Clé APNs** (obligatoire pour iPhone) : developer.apple.com → **Certificates, Identifiers &
+   Profiles → Keys → +** → cochez **Apple Push Notifications service (APNs)** → téléchargez le
+   fichier `.p8` (une seule fois possible !) et notez le **Key ID** et votre **Team ID**. Puis
+   Firebase → ⚙️ **Paramètres du projet → Cloud Messaging → App iOS → Clé d'authentification
+   APNs → Importer**.
+5. Dans Xcode, **Signing & Capabilities** : vérifiez **Push Notifications** et **Background
+   Modes** (case **Remote notifications** cochée) ; sinon **+ Capability** pour les ajouter.
+   Les fichiers `App.entitlements` et `Info.plist` sont déjà prêts.
+6. **Avant TestFlight / App Store** : dans `ios/App/App/App.entitlements`, remplacez
+   `development` par `production` pour `aps-environment`.
+7. Côté serveur : Firebase → **Paramètres du projet → Comptes de service → Générer une nouvelle
+   clé privée** → le fichier JSON va dans le secret Supabase `FCM_SERVICE_ACCOUNT`
+   (jamais dans l'app ni dans git).
+8. Test : les push ne marchent **pas dans le simulateur iPhone** ; utilisez un vrai téléphone.
+
+Android : l'icône des push est l'icône de l'app ; Android l'affiche en carré blanc. Pour une
+jolie icône, ajoutez une icône blanche sur fond transparent `res/drawable/ic_stat_notify` et
+décommentez la ligne prévue dans `AndroidManifest.xml`. Les push arrivent dans la catégorie
+« Divers » des réglages de notification, ce qui suffit pour commencer.
+
+`GoogleService-Info.plist` et `google-services.json` ne sont pas des mots de passe, mais ils
+sont propres à votre projet Firebase : ne les copiez pas d'un autre projet.
+
+## Paiement de l'abonnement et règles Apple / Google
+
+L'abonnement est payé sur **Stripe**, hors de l'app (page ouverte dans le navigateur).
+Apple impose normalement son propre paiement (règle **3.1.1**, avec commission) pour tout
+contenu numérique débloqué dans l'app. Exception **3.1.3(d) « services de personne à
+personne »** : un coaching individuel en temps réel entre deux personnes (comme un coach
+sportif ou un nutritionniste) peut être payé autrement. Le cœur de l'offre (suivi et appels avec
+Melvin) entre dans ce cas ; le relecteur Apple peut toutefois juger que le plan ou le chat sont
+du « contenu numérique ».
+
+- Dans l'app, restez **factuel** : « Votre abonnement n'est pas actif », bouton « Gérer mon
+  abonnement ». Évitez « moins cher sur le site », les comparaisons de prix ou les incitations à
+  payer ailleurs.
+- Dans les notes pour le relecteur (App Store Connect), expliquez qu'il s'agit d'un coaching
+  nutritionnel individuel avec appels en direct, et fournissez un compte de test abonné.
+- **Melvin : vérifiez les règles Apple en vigueur pour la France / l'UE avant la soumission**
+  (elles ont changé plusieurs fois avec le DMA européen). Google Play a des règles proches
+  (paiements pour services hors app).
+
 ## Bon à savoir
 
 - Les données santé sont **informatives**, pas médicales.
@@ -61,4 +119,4 @@ npm test             # petite vérification automatique des modules santé / sca
   vides = accès refusé ou pas de données. Réglages → Santé → Accès aux données → MB NUTRITION.
 - Dans un navigateur (ou l'aperçu claude.ai), les fonctions santé sont simplement absentes.
 - Fichiers techniques : `capacitor.config.json`, `www/health.js` (santé), `www/native.js`
-  (scanner, rappels), dossiers `ios/` et `android/`.
+  (scanner, rappels, push, liens), dossiers `ios/` et `android/`.
