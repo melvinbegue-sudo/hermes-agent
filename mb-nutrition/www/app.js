@@ -33,7 +33,9 @@ const short=s=>parse(s).toLocaleDateString("fr-FR",{day:"numeric",month:"short"}
 /* ───────── Stockage local (téléphone du client) ───────── */
 const KEY="mbn.app.v3";
 const PROFILE0={stepsGoal:8000,prenom:"",sexe:"h",age:30,taille:175,poids:75,objectif:"forme",seances:3,intensite:2,sport:"Musculation",moment:"soir",regime:"omni",allergies:[],salle:""};
-const BLANK={mode:null,example:true,profile:structuredClone(PROFILE0),code:null,clientId:null,plan:null,log:{},water:{},shop:{},checkins:[],trainings:[],weights:[],steps:{},lastExport:null};
+const BLANK={mode:null,example:true,profile:structuredClone(PROFILE0),code:null,clientId:null,plan:null,log:{},water:{},shop:{},checkins:[],trainings:[],weights:[],steps:{},lastExport:null,
+  health:{on:false},hr:{},sleep:{},active:{},fasts:[],foods:{},measures:[],progress:[],theme:"auto",msgSeen:null,
+  reminders:{repas:{on:false,t:"12:00"},eau:{on:false,t:"10:30"},pesee:{on:false,t:"07:30"},point:{on:false,t:"18:00"}}};
 let S;
 function load(){try{const v=JSON.parse(localStorage.getItem(KEY));if(v&&v.profile)return Object.assign(structuredClone(BLANK),v,{profile:Object.assign(structuredClone(PROFILE0),v.profile)});}catch(e){}return seedExample(structuredClone(BLANK));}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){toast("Mémoire du téléphone pleine : certaines données ne sont pas enregistrées");}}
@@ -44,6 +46,11 @@ function seedExample(s){ /* premier lancement : un état réaliste, marqué « e
   s.checkins=[{date:addDays(t,-14),energie:3,sommeil:3,faim:3,respect:2,ex:true},{date:addDays(t,-7),energie:4,sommeil:3,faim:2,respect:3,ex:true}];
   s.trainings=[{id:"tx1",date:addDays(t,-2),sport:"Musculation",min:60,intensite:2,ex:true},{id:"tx2",date:addDays(t,-4),sport:"CrossFit",min:45,intensite:3,ex:true}];
   s.weights=[{date:addDays(t,-21),kg:76.4,ex:true},{date:addDays(t,-14),kg:76.0,ex:true},{date:addDays(t,-7),kg:75.6,ex:true}];
+  /* Santé : fréquence cardiaque, sommeil, énergie active des 7 derniers jours (courbe réaliste : nuit basse, séance l'après-midi) */
+  for(let k=0;k<7;k++){const day=addDays(t,-k),rest=57+(k*3)%5,pts=[];
+    for(let m=0;m<(k?1440:Math.max(120,new Date().getHours()*60+new Date().getMinutes()));m+=15){const h=m/60,act=h>=7&&h<23?14+8*Math.sin(h/2.3):0,sport=h>=17.5&&h<18.5?55:0;pts.push([m,Math.round(rest+act+sport+((m*7+k*13)%9)-4)]);}
+    const v=pts.map(p=>p[1]);s.hr[day]={avg:Math.round(v.reduce((a,b)=>a+b,0)/v.length),min:Math.min(...v),max:Math.max(...v),resting:rest,hrv:44+(k*7)%13,pts};
+    s.sleep[day]=[442,401,465,388,476,430,452][k];s.active[day]=[310,520,460,610,380,540,290][k];}
   return s;
 }
 
@@ -204,7 +211,9 @@ V.journal=v=>{
       (es.length?'<ul class="entries">'+es.map(e=>'<li class="entry'+(e.photo?" has-ph":"")+'">'+(e.photo?'<span class="thumb" data-ph="'+e.photo+'" role="img" aria-label="Photo"></span>':'')+'<span><b>'+esc(e.name)+'</b></span><span class="k">'+fmt(e.k)+'</span><button class="x" data-del="'+e.id+'" aria-label="Retirer '+esc(e.name)+'"><svg aria-hidden="true"><use href="#i-x"/></svg></button></li>').join("")+'</ul>':'')+'</div>';}).join("")+'</section>'+
    '<div class="tiles">'+
     '<button class="tile" data-tile="water"><span class="tl c-water">Eau<svg aria-hidden="true"><use href="#i-drop"/></svg></span><span><span class="n">'+dec(water*.25,water%4?2:0)+'<small> / 2 L</small></span><span class="track" style="display:block;margin-top:8px"><i style="background:var(--water);transform:scaleX(0)" data-x="'+Math.min(1,water/8)+'"></i></span></span></button>'+
-    '<button class="tile" data-tile="steps"><span class="tl c-steps">Pas<svg aria-hidden="true"><use href="#i-steps"/></svg></span><span><span class="n">'+fmt(steps)+'</span><span class="track" style="display:block;margin-top:8px"><i style="background:var(--steps);transform:scaleX(0)" data-x="'+Math.min(1,steps/goal)+'"></i></span></span></button>'+
+    '<button class="tile" data-tile="steps"><span class="tl c-steps">Pas<svg aria-hidden="true"><use href="#i-steps"/></svg></span><span><span class="n">'+fmt(steps)+'</span><span class="track" style="display:block;margin-top:8px"><i style="background:var(--steps);transform:scaleX(0)" data-x="'+Math.min(1,steps/goal)+'"></i></span>'+(S.health.on&&steps&&S.health.steps?.[selDate]===steps?'<span class="via">via Santé</span>':'')+'</span></button>'+
+    (S.hr[selDate]?(x=>'<button class="tile" data-tile="hr"><span class="tl c-hr">Cœur<svg aria-hidden="true"><use href="#i-heart"/></svg></span><span><span class="n">'+(x.resting||x.avg||"–")+'<small> bpm</small></span><span class="sub">'+(x.resting?"au repos":"en moyenne")+(x.resting&&x.avg?" · moy. "+x.avg:"")+'</span></span></button>')(S.hr[selDate]):'')+
+    (S.sleep[selDate]?(m=>'<button class="tile" data-tile="sleep"><span class="tl c-sleep">Sommeil<svg aria-hidden="true"><use href="#i-bed"/></svg></span><span><span class="n">'+Math.floor(m/60)+'<small> h </small>'+String(m%60).padStart(2,"0")+'</span><span class="sub">'+(S.active[selDate]?fmt(S.active[selDate])+" kcal actives":"cette nuit")+'</span></span></button>')(S.sleep[selDate]):'')+
     '<button class="tile" data-tile="train"><span class="tl c-train">Séance<svg aria-hidden="true"><use href="#i-dumbbell"/></svg></span><span><span class="n">'+(tr.length?fmt(tr.reduce((a,t)=>a+t.min,0))+'<small> min</small>':wk+'<small> / '+S.profile.seances+'</small>')+'</span><span class="sub">'+(tr.length?esc(tr.map(t=>t.sport).join(" · ")):"cette semaine")+'</span></span></button>'+
     '<button class="tile" data-tile="weight"><span class="tl c-weight">Poids<svg aria-hidden="true"><use href="#i-scale"/></svg></span><span><span class="n">'+(lw?dec(lw.kg):"–")+'<small> kg</small></span><span class="sub">'+(lw?short(lw.date):"à noter")+'</span></span></button>'+
     (due?'<button class="tile due" data-tile="ci" style="grid-column:1/-1;min-height:0"><span class="tl">Point de la semaine<svg aria-hidden="true"><use href="#i-pulse"/></svg></span><span class="sub">1 minute pour Melvin</span></button>':'')+
@@ -225,7 +234,7 @@ V.journal=v=>{
   $$("[data-add]",v).forEach(b=>b.onclick=()=>addSheet(+b.dataset.add));
   $$("[data-quick]",v).forEach(b=>b.onclick=()=>addEntry(entryFromMeal(WEEK[dow(selDate)][+b.dataset.quick],+b.dataset.quick)));
   $$("[data-del]",v).forEach(b=>b.onclick=()=>{const L=S.log[selDate],i=L.findIndex(e=>e.id===b.dataset.del),e=L[i];L.splice(i,1);save();rerender();toast("Retiré",()=>{S.log[selDate].splice(i,0,e);save();rerender();});});
-  $$("[data-tile]",v).forEach(b=>b.onclick=()=>({water:()=>water1(1,b),steps:stepsSheet,train:trainingSheet,weight:weightSheet,ci:checkinSheet})[b.dataset.tile]());};
+  $$("[data-tile]",v).forEach(b=>b.onclick=()=>({water:()=>water1(1,b),steps:stepsSheet,train:trainingSheet,weight:weightSheet,ci:checkinSheet,hr:hrSheet,sleep:sleepSheet})[b.dataset.tile]());};
 function rerender(focusSel){const v=$("#view");V[cur()](v);hydratePhotos(v);if(focusSel)$(focusSel,v)?.focus({preventScroll:true});}
 function water1(n,btn){const w=Math.max(0,Math.min(16,(S.water[selDate]||0)+n));S.water[selDate]=w;save();if(cur()==="journal"){rerender('[data-tile="water"]');pulse($('[data-tile="water"]'));}toast(dec(w*.25,w%4?2:0)+" L"+(w===8?" · objectif atteint":""),()=>{S.water[selDate]=Math.max(0,w-n);save();if(cur()==="journal")rerender();});}
 function stepsSheet(){let n=S.steps[selDate]||0;const goal=S.profile.stepsGoal||8000;
@@ -330,6 +339,9 @@ V.progres=v=>{const mon=monday(todayIso()),days=[0,1,2,3,4,5,6].map(i=>addDays(m
    card("c-kcal","Calories",fmt(avg),"kcal / jour","moyenne de la semaine",sparkBars(kc,lab,"var(--kcal)",tgt))+
    card("c-weight","Poids",lw?dec(lw.kg):"–","kg",lw&&fw&&fw!==lw?((lw.kg-fw.kg<=0?"":"+")+dec(lw.kg-fw.kg)+" kg en 30 jours"):"",W.length>1?sparkLine(W.slice(-12).map(w=>[w.date,w.kg]),"var(--weight)"):'','<button class="btn sm soft" data-w>Noter</button>')+
    card("c-steps","Pas",fmt(stp.reduce((a,b)=>a+b,0)/Math.max(1,stp.filter(Boolean).length)),"/ jour","objectif "+fmt(goal),sparkBars(stp,lab,"var(--steps)",goal),'<button class="btn sm soft" data-s>Noter</button>')+
+   (()=>{const d7=[6,5,4,3,2,1,0].map(k=>addDays(todayIso(),-k)),l7=d7.map(d=>({t:JOURS[dow(d)],today:d===todayIso()})),rp=d7.filter(d=>S.hr[d]?.resting).map(d=>[d,S.hr[d].resting]),sk=d7.filter(d=>S.sleep[d]),sa=sk.length?sk.reduce((a,d)=>a+S.sleep[d],0)/sk.length:0;
+     return (rp.length?card("c-hr","Cœur au repos",rp[rp.length-1][1],"bpm","moyenne 7 jours : "+Math.round(rp.reduce((a,p)=>a+p[1],0)/rp.length)+" bpm",sparkLine(rp,"var(--hr,#FF3B6B)")):'')+
+      (sk.length?card("c-sleep","Sommeil",hm(sa),"/ nuit","moyenne sur 7 jours",sparkBars(d7.map(d=>(S.sleep[d]||0)/60),l7,"var(--sleep,#5B5BD6)",8)):'');})()+
    card("c-train","Séances",wks[3].n+'<small> / '+S.profile.seances+'</small>',"",fmt(wks[3].min)+" min cette semaine",sparkBars(wks.map(w=>w.n),wks.map((w,i)=>({t:i===3?"Sem.":short(w.m),today:i===3})),"var(--train)",S.profile.seances),'<button class="btn sm soft" data-t>Noter</button>')+
    (C.length?card("","Énergie",C[C.length-1].energie+'<small> / 5</small>',"","sommeil "+C[C.length-1].sommeil+" / 5",sparkLine(C.slice(-8).map(c=>[c.date,c.energie]),"var(--ink)"),'<button class="btn sm soft" data-ci>Point</button>'):'')+
    (photos.length?'<section class="card stack"><span class="eyebrow">Photos</span><div class="gallery">'+photos.map(x=>'<figure><span class="thumb lg" data-ph="'+x.e.photo+'" role="img" aria-label="'+esc(x.e.name)+'"></span><figcaption>'+fmt(x.e.k)+' kcal · '+short(x.d)+'</figcaption></figure>').join("")+'</div></section>':'')+
@@ -375,7 +387,7 @@ V.bilan=v=>{if(!wz)wz={s:0,p:S.example?Object.assign(structuredClone(PROFILE0),{
   $("#bN").onclick=()=>{if(!keep()){toast("Vérifiez l'âge (16-90), la taille (130-220 cm) et le poids (35-250 kg)");return;}if(s===0&&!p.prenom){$("#bP").focus();toast("Indiquez votre prénom");return;}
     if(s<N-1){wz.s++;V.bilan(v);reveal(v);return;}
     const wasEx=S.example;S.profile=structuredClone(p);S.example=false;S.mode=S.mode&&S.mode!=="demo"?S.mode:"client";S.shop={};
-    if(wasEx){S.log={};S.water={};S.checkins=[];S.trainings=[];S.weights=[];S.steps={};}S.weights=S.weights.filter(x=>x.date!==todayIso());S.weights.push({date:todayIso(),kg:p.poids});save();
+    if(wasEx){S.log={};S.water={};S.checkins=[];S.trainings=[];S.weights=[];S.steps={};S.fasts=[];S.measures=[];if(!S.health.on){S.hr={};S.sleep={};S.active={};}}S.weights=S.weights.filter(x=>x.date!==todayIso());S.weights.push({date:todayIso(),kg:p.poids});save();
     const msg="Bilan MB NUTRITION\nPrénom : "+p.prenom+"\nSalle : "+(p.salle||"non précisée")+"\nProfil : "+(p.sexe==="f"?"femme":"homme")+", "+p.age+" ans, "+p.taille+" cm, "+dec(p.poids)+" kg\nObjectif : "+OBJECTIFS[p.objectif].label+"\nEntraînement : "+p.sport+", "+plural(p.seances,"séance")+" par semaine, intensité "+INT_TXT[p.intensite-1].toLowerCase()+", "+MOMENT_TXT[p.moment]+"\nAlimentation : "+REG_TXT[p.regime].toLowerCase()+"\nAllergies : "+(p.allergies.map(a=>ALL_TXT[a].toLowerCase()).join(", ")||"aucune")+"\nBesoin estimé : "+fmt(targetKcal(p))+" kcal/jour"+(S.clientId?"\nCode client : "+S.code:"");
     wz=null;selDate=todayIso();go("journal");
     setTimeout(()=>sheet('<div class="stack"><span class="eyebrow">Bilan enregistré</span><h2>Envoyez votre bilan à Melvin</h2><p class="small mute">'+(S.clientId?"Il l'ajoutera à votre fiche.":"Il vous enverra votre code client pour valider vos portions.")+'</p><pre class="code clip">'+esc(msg)+'</pre><a class="btn gold block" href="'+wa(msg)+'" target="_blank" rel="noopener"><svg aria-hidden="true"><use href="#i-wa"/></svg>Envoyer sur WhatsApp</a><button class="btn line block" data-cp>Copier le bilan</button></div>',sh=>{$("[data-cp]",sh).onclick=e=>copy(msg,e.currentTarget);}),300);};};
@@ -385,9 +397,10 @@ V.profil=v=>{const P=S.profile,code=S.code&&parseCode(S.code);
    (S.example?'':'<section class="card stack"><div class="row between"><h2>Mon profil</h2><span class="pill">'+(planKcal()?fmt(planKcal())+' kcal/j · Melvin':fmt(targetKcal(P))+' kcal/j estimées')+'</span></div><ul class="hist">'+[["Profil",(P.sexe==="f"?"Femme":"Homme")+", "+P.age+" ans, "+P.taille+" cm"],["Entraînement",P.sport+", "+plural(P.seances,"séance")+" / sem., "+INT_TXT[P.intensite-1].toLowerCase()],["Alimentation",REG_TXT[P.regime]],["Allergies",P.allergies.map(a=>ALL_TXT[a]).join(", ")||"Aucune"]].map(([a,b])=>'<li><span class="mute">'+a+'</span><b>'+b+'</b></li>').join("")+'</ul></section>')+
    '<section class="card stack"><span class="eyebrow">Compte client</span><h2>'+(code?"Connecté avec votre code":"Vous avez reçu un code ?")+'</h2><p class="small mute">'+(code?"Portions réglées par Melvin à "+pct()+" % · objectif « "+OBJECTIFS[code.obj].label+" ».":"Melvin vous envoie un code client après votre bilan : il relie l'appli à votre fiche et valide vos portions.")+'</p>'+(code?'<span class="code">'+esc(S.code)+'</span><form class="row" id="cF" style="gap:8px"><label class="sr" for="cI">Nouveau plan de Melvin</label><input class="input" id="cI" placeholder="Coller un plan de Melvin" autocomplete="off" spellcheck="false"><button class="btn soft" type="submit">OK</button></form><button class="lnk" id="cX" style="justify-self:start">Me déconnecter de ce code</button>':'<form class="row" id="cF" style="gap:8px"><label class="sr" for="cI">Code client</label><input class="input" id="cI" placeholder="MB-FORME-115-K7Q2-X" autocomplete="off" spellcheck="false"><button class="btn gold" type="submit">Valider</button></form>')+'</section>'+
    (coachOn?'<a class="card row between" href="#coach" style="text-decoration:none"><span class="row"><span class="ico"><svg aria-hidden="true"><use href="#i-coach"/></svg></span><span><b style="color:var(--ink)">Espace coach</b><br><span class="small mute">Vos clients, leurs suivis, leurs codes</span></span></span><svg class="chev" style="transform:rotate(-90deg)" aria-hidden="true"><use href="#i-chev"/></svg></a>':'')+
+   healthCard()+
    '<section class="card stack"><span class="eyebrow">Contact</span><h2>Melvin BEGUE</h2><p class="small mute">Coach sportif · Master STAPS EOPS</p><div class="row" style="flex-wrap:wrap;gap:10px"><a class="btn" href="'+wa("Bonjour Melvin, ")+'" target="_blank" rel="noopener"><svg aria-hidden="true"><use href="#i-wa"/></svg>WhatsApp</a><button class="btn line" data-copy="'+TEL_TXT+'"><svg aria-hidden="true"><use href="#i-copy"/></svg>'+TEL_TXT+'</button></div></section>'+
    '<section class="card stack"><span class="eyebrow">Mes données</span><p class="small">Journal, photos, poids et séances restent sur ce téléphone. Rien ne part chez Melvin sans que vous l\'envoyiez.</p><div id="rz"><button class="btn line" id="rz1">Effacer mes données</button></div></section>'+legal;
-  $$("[data-copy]",v).forEach(b=>b.onclick=()=>copy(b.dataset.copy,b));
+  $$("[data-copy]",v).forEach(b=>b.onclick=()=>copy(b.dataset.copy,b));bindHealth(v);
   $("#cF")&&($("#cF").onsubmit=e=>{e.preventDefault();if(!applyInput($("#cI").value)){$("#cI").focus();return;}route();});
   $("#cX")&&($("#cX").onclick=()=>{S.code=null;S.clientId=null;S.plan=null;save();route();});
   $("#rz1").onclick=()=>{$("#rz").innerHTML='<div class="stack"><p class="small">Bilan, journal, photos, poids, séances et points seront effacés de ce téléphone.</p><div class="row" style="gap:8px"><button class="btn soft" id="rzN">Annuler</button><button class="btn danger" id="rzY">Tout effacer</button></div></div>';$("#rzN").focus();
@@ -495,9 +508,54 @@ async function initCaps(){if(!window.claude?.use)return;
   try{const s=await db.doc("coach/main").get();if(s.exists&&s.data().tarif!=null)tarif=+s.data().tarif;}catch(e){}
   db.collection("coach/main/clients").onSnapshot(snap=>{clearTimeout(t);ready=true;clients=snap.docs.map(d=>({id:d.id,...d.data()}));if(cur()==="coach"&&!$(".sheet"))V.coach($("#view"));},()=>{clearTimeout(t);ready=true;if(cur()==="coach")V.coach($("#view"));});}
 
+/* ───────── Santé : Apple Santé / Health Connect via health.js (absent dans le navigateur) ───────── */
+const H=()=>window.MBHealth?.available?.()?window.MBHealth:null;
+const hm=m=>Math.floor(m/60)+" h "+String(Math.round(m%60)).padStart(2,"0");
+let hBusy=false;
+async function healthPull(){const h=H();if(!h||!S.health.on||hBusy)return;hBusy=true;
+  try{const t=todayIso(),hs=S.health.steps||(S.health.steps={});
+    const takeSteps=(d,n)=>{n=Math.round(+n||0);if(n>0&&n>=(S.steps[d]||0)){S.steps[d]=n;hs[d]=n;}}; /* ne jamais écraser un total manuel plus grand */
+    const r=await h.range(addDays(t,-6),t)||{};
+    for(const[d,x]of Object.entries(r)){if(!x||!/^\d{4}-\d\d-\d\d$/.test(d))continue;takeSteps(d,x.steps);
+      if(x.sleepMin>0)S.sleep[d]=Math.round(x.sleepMin);if(x.activeKcal>0)S.active[d]=Math.round(x.activeKcal);
+      if(x.hrResting>0)S.hr[d]=Object.assign({},S.hr[d],{resting:Math.round(x.hrResting)});}
+    const dy=await h.day(t);
+    if(dy){takeSteps(t,dy.steps);if(dy.sleepMin>0)S.sleep[t]=Math.round(dy.sleepMin);if(dy.activeKcal>0)S.active[t]=Math.round(dy.activeKcal);
+      const r0=n=>n>0?Math.round(n):null;
+      if(dy.hrAvg||dy.hrResting)S.hr[t]={avg:r0(dy.hrAvg),min:r0(dy.hrMin),max:r0(dy.hrMax),resting:r0(dy.hrResting),hrv:r0(dy.hrv),pts:Array.isArray(dy.hr)?dy.hr.filter(p=>Array.isArray(p)&&p[1]>0).slice(0,96):[]};}
+    const w=await h.latestWeight(),lw=lastWeight(),wd=w&&String(w.date||"").slice(0,10);
+    if(w&&w.kg>=30&&w.kg<=250&&wd&&(!lw||lw.ex||wd>lw.date)){S.weights=S.weights.filter(x=>!x.ex&&x.date!==wd);S.weights.push({date:wd,kg:Math.round(w.kg*10)/10,src:"health"});}
+    S.health.at=new Date().toISOString();save();
+    if(!$(".sheet")&&["journal","progres","profil"].includes(cur()))rerender();
+  }catch(e){}finally{hBusy=false;}}
+function hrCurve(pts){if(!pts||pts.length<2)return '';const W=330,Ht=120,v=pts.map(p=>p[1]),lo=Math.min(...v)-5,hi=Math.max(...v)+5,px=m=>8+m*(W-16)/1440,py=b=>Ht-20-(b-lo)*(Ht-30)/(hi-lo),
+  d=pts.map((p,i)=>(i?"L":"M")+px(p[0]).toFixed(1)+" "+py(p[1]).toFixed(1)).join(" "),c="var(--hr,#FF3B6B)",l=pts[pts.length-1];
+  return '<svg class="chart" viewBox="0 0 '+W+' '+Ht+'" role="img" aria-label="Fréquence cardiaque au fil de la journée"><path d="'+d+'" fill="none" stroke="'+c+'" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="'+px(l[0])+'" cy="'+py(l[1])+'" r="4" fill="'+c+'" stroke="var(--card)" stroke-width="2"/>'+
+   [0,6,12,18,24].map(h=>'<text x="'+px(h*60)+'" y="'+(Ht-5)+'" text-anchor="'+(h===0?"start":h===24?"end":"middle")+'">'+h+' h</text>').join("")+'</svg>';}
+function hrSheet(){const x=S.hr[selDate]||{};
+  sheet('<div class="stack"><span class="eyebrow c-hr">Cœur · '+short(selDate)+'</span><h2>'+(x.resting?x.resting+' bpm au repos':'Fréquence cardiaque')+'</h2>'+(hrCurve(x.pts)||'<p class="small mute">Pas de courbe détaillée pour ce jour.</p>')+
+   '<section class="kpis">'+[["min","Minimum"],["avg","Moyenne"],["max","Maximum"]].map(([k,l])=>'<div class="kpi"><span class="n">'+(x[k]?fmt(x[k]):"–")+'</span><span>'+l+' · bpm</span></div>').join("")+'</section>'+
+   '<ul class="hist"><li><span class="mute">Au repos</span><b>'+(x.resting?x.resting+' bpm':'–')+'</b></li><li><span class="mute">Variabilité (VFC)</span><b>'+(x.hrv?x.hrv+' ms':'–')+'</b></li>'+(S.active[selDate]?'<li><span class="mute">Énergie active</span><b>'+fmt(S.active[selDate])+' kcal</b></li>':'')+'</ul>'+
+   '<p class="small mute">'+(S.health.on?"Données de l'app Santé":"Données d'exemple")+', à titre indicatif. Ce n\'est pas un suivi médical.</p></div>');}
+function sleepSheet(){const days=[6,5,4,3,2,1,0].map(k=>addDays(selDate,-k)),m=S.sleep[selDate]||0,kn=days.filter(d=>S.sleep[d]),avg=kn.length?kn.reduce((a,d)=>a+S.sleep[d],0)/kn.length:0;
+  sheet('<div class="stack"><span class="eyebrow c-sleep">Sommeil · nuit du '+short(addDays(selDate,-1))+'</span><h2>'+(m?hm(m):"Pas de donnée")+'</h2>'+sparkBars(days.map(d=>(S.sleep[d]||0)/60),days.map(d=>({t:JOURS[dow(d)],today:d===selDate})),"var(--sleep,#5B5BD6)",8)+
+   '<p class="small mute">Moyenne sur 7 jours : '+(avg?hm(avg):"–")+'. Visez 7 à 9 heures : la récupération en dépend.</p></div>');}
+function healthCard(){const h=H();
+  return '<section class="card stack"><div class="row between"><span class="eyebrow c-hr">Apple Santé · Health Connect</span>'+(S.health.on&&h?'<span class="pill ok"><i></i>Connecté</span>':'')+'</div>'+
+   (!h?'<h2>Pas, cœur, sommeil et poids</h2><p class="small mute">Dans l\'appli MB NUTRITION sur iPhone ou Android, vos données Santé s\'ajoutent toutes seules. Ici, notez-les à la main.</p>':
+    S.health.on?'<p class="small mute">'+(S.health.at?"Dernière synchronisation : "+new Date(S.health.at).toLocaleString("fr-FR",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}):"Synchronisation…")+'. Lecture seule : rien n\'est modifié dans Santé.</p><div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn sm soft" id="hS">Synchroniser</button><button class="btn sm line" id="hX">Déconnecter</button></div>':
+    '<h2>Connecter Santé</h2><p class="small mute">Pas, fréquence cardiaque, sommeil, énergie active et poids s\'ajoutent tout seuls. Lecture seule.</p><button class="btn gold block" id="hC"><svg aria-hidden="true"><use href="#i-heart"/></svg>Connecter Santé</button>')+'</section>';}
+function bindHealth(v){
+  $("#hC",v)&&($("#hC",v).onclick=async e=>{const b=e.currentTarget;b.disabled=true;const ok=await H()?.request?.();if(!ok){b.disabled=false;toast("Autorisation refusée : activez-la dans les réglages Santé");return;}
+    S.health={on:true,steps:{}};save();toast("Santé connectée");await healthPull();rerender();});
+  $("#hS",v)&&($("#hS",v).onclick=async e=>{pulse(e.currentTarget);await healthPull();toast("Synchronisé");});
+  $("#hX",v)&&($("#hX",v).onclick=()=>{S.health={on:false};save();rerender();toast("Santé déconnectée · données importées conservées");});}
+function onResume(){healthPull();}
+
 /* ───────── Démarrage ───────── */
 S=load();save();renderTabs();addEventListener("hashchange",route);
 const realign=()=>{const a=$('#tabs a[aria-current="page"]');a&&slide($("#tabs .ind"),a,$("#tabs"),false);$$(".dates,.segs").forEach(p=>slide($(".sel",p),$('[aria-pressed="true"]',p),p,false));};
 addEventListener("resize",realign);route();document.fonts?.ready.then(realign);initCaps();
+healthPull();document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")onResume();});
 })();
 

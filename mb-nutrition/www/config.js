@@ -1,0 +1,6 @@
+/* Connexion au serveur MB NUTRITION (Supabase).
+   Laissez vide = mode local : l'appli marche comme aujourd'hui, tout reste sur le téléphone.
+   Pour activer comptes, synchro, espace coach et chat : Supabase > Project Settings > API,
+   copiez « Project URL » dans supabaseUrl et la clé « anon public » dans supabaseAnonKey.
+   Ne mettez JAMAIS ici la clé « service_role » ni la clé Anthropic. Voir supabase/README.md. */
+window.MB_CONFIG = { supabaseUrl: "", supabaseAnonKey: "" };
