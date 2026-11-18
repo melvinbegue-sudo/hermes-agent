@@ -131,11 +131,14 @@ struct RingsView: View {
             }
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(r == nil
-            ? "Anneaux du jour : pas encore de données aujourd'hui"
-            : "Anneaux du jour : \(fmt(r!.kcal)) sur \(fmt(r!.kcalGoal)) kilocalories, \(fmt(r!.prot)) sur \(fmt(r!.protGoal)) grammes de protéines, \(fmt(r!.steps)) sur \(fmt(r!.stepsGoal)) pas")
+        .accessibilityLabel(Text(ringsLabel(r)))
         .widgetBackground(cardColor)
     }
+}
+
+func ringsLabel(_ r: Rings?) -> String {
+    guard let r = r else { return "Anneaux du jour : pas encore de données aujourd'hui" }
+    return "Anneaux du jour : \(fmt(r.kcal)) sur \(fmt(r.kcalGoal)) kilocalories, \(fmt(r.prot)) sur \(fmt(r.protGoal)) grammes de protéines, \(fmt(r.steps)) sur \(fmt(r.stepsGoal)) pas"
 }
 
 extension View {
