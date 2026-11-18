@@ -1,6 +1,6 @@
 # Mettre en ligne le serveur MB NUTRITION (Supabase)
 
-Comptez environ 30 minutes pour les étapes 1 à 6, puis 1 heure pour l'abonnement, les calls et les notifications (7 à 10). Tant que vous n'avez pas fini, l'appli continue de marcher en mode local, sans rien perdre.
+Comptez environ 30 minutes pour les étapes 1 à 6, puis 1 heure pour l'abonnement, les calls et les notifications (7 à 10), et 30 minutes pour le RGPD (11). Tant que vous n'avez pas fini, l'appli continue de marcher en mode local, sans rien perdre.
 
 Ce que le serveur apporte : connexion des clients par code reçu par e-mail, synchronisation des journées, poids,
 mensurations et photos, espace coach avec tous vos clients, chat, et analyse des photos de repas par l'IA.
@@ -9,7 +9,9 @@ mensurations et photos, espace coach avec tous vos clients, chat, et analyse des
 
 1. Allez sur https://supabase.com, puis « Start your project ». Connectez-vous (avec GitHub ou un e-mail).
 2. « New project » : nom `mb-nutrition`, choisissez un mot de passe de base de données (gardez-le en lieu sûr),
-   région **West EU (Paris)** ou **Central EU (Frankfurt)**, offre **Free**.
+   région **West EU (Paris)** (`eu-west-3`) ou **Central EU (Frankfurt)** (`eu-central-1`), offre **Free**.
+   **Obligatoire** : les données de santé doivent rester dans l'Union européenne, et la région ne peut plus être
+   changée après la création du projet.
 3. Attendez environ 2 minutes que le projet soit prêt.
 
 ## 2. Créer les tables (copier-coller)
@@ -19,6 +21,9 @@ mensurations et photos, espace coach avec tous vos clients, chat, et analyse des
 3. Le message « Success. No rows returned » doit s'afficher. Ne le lancez qu'une fois.
 4. Nouvelle requête, même chose avec `supabase/migrations/0002_billing_calls_push.sql` (abonnement, calls, notifications).
    Une seule fois aussi, et toujours **après** le 0001.
+5. Puis `supabase/migrations/0003_consent.sql` (consentement RGPD aux données de santé), une fois, après le 0002.
+   À partir de là, un client qui n'a pas donné son accord dans l'appli ne peut plus envoyer ses journées, poids,
+   mensurations, bilans ni photos : tout reste sur son téléphone.
 
 ## 3. Recevoir un code à 6 chiffres par e-mail
 
@@ -115,8 +120,9 @@ Accès offert : dans l'espace coach, « Accès offert » donne l'accès sans pay
 client peut le changer, et Stripe n'y touche jamais. Paiement refusé : le client garde l'accès pendant que Stripe
 retente le prélèvement (`past_due`), puis le perd si l'abonnement est annulé.
 
-**Annulez l'abonnement Stripe du client avant de supprimer son compte.** Sinon Stripe continue
-de le prélever ; le webhook ignore simplement ce client supprimé.
+Quand un client supprime lui-même son compte dans l'appli, son abonnement Stripe est annulé automatiquement
+(étape 11). **Si c'est vous qui supprimez un compte** depuis Supabase (**Authentication > Users**), annulez d'abord
+son abonnement dans Stripe : sinon Stripe continue de le prélever ; le webhook ignore simplement ce client supprimé.
 
 ## 9. Calls (Cal.com)
 
@@ -161,16 +167,49 @@ Récapitulatif des fonctions :
 | send-push | `npx supabase functions deploy send-push` | l'espace coach |
 | stripe-webhook | `npx supabase functions deploy stripe-webhook --no-verify-jwt` | Stripe |
 | cal-webhook | `npx supabase functions deploy cal-webhook --no-verify-jwt` | Cal.com |
+| delete-account | `npx supabase functions deploy delete-account` | l'appli (client) |
+
+## 11. RGPD : consentement, export, suppression de compte
+
+Les pas, le cœur, le sommeil, le poids, les mensurations, le cycle et les photos sont des **données de santé**
+(article 9 du RGPD) : il faut l'accord explicite du client, et pouvoir lui rendre ou effacer ses données.
+
+1. Lancez `0003_consent.sql` si ce n'est pas fait (étape 2).
+2. Déployez la suppression de compte : `npx supabase functions deploy delete-account`
+   (elle utilise le secret `STRIPE_SECRET_KEY` de l'étape 8). Elle annule l'abonnement Stripe tout de suite, sans
+   remboursement au prorata, efface les photos, les rendez-vous et le compte. Les factures restent chez Stripe
+   (10 ans, obligation comptable). Votre compte coach ne peut pas être supprimé par ce bouton.
+3. Ouvrez `www/legal.js` et remplacez `[À COMPLÉTER : adresse]` par votre adresse professionnelle
+   (obligatoire dans les mentions légales).
+4. Signez (ou acceptez) l'accord de sous-traitance (« DPA ») de chaque prestataire :
+   - Supabase : https://supabase.com/legal/dpa (à signer depuis le tableau de bord : **Organization > Legal documents**)
+   - Stripe : https://stripe.com/legal/dpa (inclus dans le contrat Stripe, rien à signer en général)
+   - Cal.com : https://cal.com/legal/dpa (lien non vérifié : sinon, demandez-le à leur support)
+   - Google Firebase : https://firebase.google.com/terms/data-processing-terms (à accepter dans
+     **Firebase > Paramètres du projet > Confidentialité**)
+   - Anthropic : https://www.anthropic.com/legal/data-processing-addendum (inclus dans les conditions commerciales de l'API)
+   Gardez une copie de chacun.
+5. **Faites relire `www/legal.js` par un avocat** (ou un juriste RGPD) avant le lancement. La liste des points à
+   vérifier est en commentaire en haut du fichier (adresse, transferts hors UE, âge minimum, conditions de vente…).
+   Vérifiez aussi avec lui s'il faut une analyse d'impact (AIPD) : la CNIL l'exige souvent pour des données de santé.
+6. Changement du texte de consentement : augmentez `version` dans `www/legal.js` (par exemple `"2027-01"`),
+   l'appli redemande alors l'accord.
+
+Demande d'un client par e-mail (accès, effacement…) : vous avez **un mois** pour répondre. Le plus simple est de
+lui indiquer les boutons « Exporter mes données » et « Supprimer mon compte » de l'appli.
 
 ## Vérifier
 
-- Sur un téléphone, connectez-vous comme client, ajoutez un repas : une ligne apparaît dans **Table Editor > days**.
+- Sur un téléphone, connectez-vous comme client, acceptez le consentement santé, ajoutez un repas : une ligne
+  apparaît dans **Table Editor > days** (et une ligne dans **consents**).
 - Avec votre compte coach, le client apparaît dans l'espace coach.
 - Un client ne voit jamais les données d'un autre client : c'est imposé par la base, pas par l'appli.
 
 ## En cas de souci
 
 - « Code invalide » : le code expire au bout d'une heure, et seul le dernier code reçu est valable.
+- Les journées d'un client n'arrivent plus : il a refusé ou retiré le consentement santé (dernière ligne de
+  **Table Editor > consents** à `false`). Ses données restent sur son téléphone tant qu'il ne l'accepte pas.
 - Pas d'e-mail reçu : regardez les spams, puis la limite d'envoi de l'étape 3.
 - Analyse photo indisponible : vérifiez le secret `ANTHROPIC_API_KEY` et les journaux dans **Edge Functions > analyze-meal > Logs**.
 - Abonnement payé mais toujours bloqué : Stripe > **Développeurs > Webhooks** > votre destination : les envois doivent
