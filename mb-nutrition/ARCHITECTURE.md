@@ -87,3 +87,34 @@ Non-secret app config in www/config.js: `calUrl` (e.g. "https://cal.com/melvin-b
 - `push.onTap(cb)` — cb({title, body, data}) when a push notification is tapped (coach pushes carry data.view = "chat").
 - `onBrowserClosed(cb)` — cb() when the in-app browser is closed (native only; web: no-op).
 - Pre-session reminders keep using `notify.schedule(list)`.
+
+## v3 — RGPD, alertes, bilans, aliments, recettes, drive, badges, widget, cycle, PDF, sobriété
+
+Owner decisions: drive = per-item search links (Leclerc, Carrefour; client picks store once);
++40 fixed recipes (no AI); weekly bilan computed by rules (no AI); photo AI model = claude-sonnet-5-5;
+cycle tracking opt-in for women: phase from Apple Santé or manual entry, shows phase + explains
+weight/hunger, luteal phase suggests +100 kcal (one collation), phase visible to coach;
+iPhone widget = "Anneaux du jour" (home screen); monthly PDF for client (Tendances) and coach
+(client file), generated on device; texts cut to the minimum, legal lines short + full text in a
+"Mentions et confidentialité" page. Coach alert thresholds (configurable): 3 days without log,
+weight flat 3 weeks with objectif perte/muscle, < 50 % of planned sessions this week, weekly
+check-in > 10 days late, payment failed.
+
+Data controller (privacy page): BEGUE Melvin, entreprise individuelle, SIRET 981 481 864 00016,
+contact melvin.begue@gmail.com, address [À COMPLÉTER]. Supabase project must be in an EU region.
+
+### Files & ownership
+- `www/data.js` — recipes (MEALS/WEEK extended), DRIVE = {leclerc:{name,search:q=>url}, carrefour:{…}}.
+- `www/foods/ciqual.json` — Ciqual (Anses, Licence Ouverte) subset, lazy-loaded on first food search:
+  `[[id, name, kcal, p, g, l, rayon]]` per 100 g. Loader `window.MBFoods.search(q, limit)` in `www/foods.js` (async).
+- `www/legal.js` — `window.MB_LEGAL = {short:"…", privacyHtml:"…", consentText:"…", version:"2026-11"}`.
+- `www/vendor/jspdf.umd.min.js` — lazy-loaded only when exporting a PDF.
+- `www/vendor/supabase.js` — loaded only when MB_CONFIG.supabaseUrl is set (perf).
+
+### Bridges additions
+- `MBHealth.cycle(fromIso, toIso)` -> `[{date, flow:"none"|"light"|"medium"|"heavy"}]` menstrual flow samples, or null.
+- `MBNative.saveFile(blob, filename, mime)` -> boolean (native: Filesystem + Share sheet; web: false → app falls back to `dl.save` / download).
+- `MBNative.widget.update({kcal, kcalGoal, prot, protGoal, steps, stepsGoal, date})` -> boolean
+  (iOS: writes App Group `group.fr.mbnutrition.app` UserDefaults key "rings" + WidgetCenter reload; else false).
+- `MBSync.consent.get()` / `consent.set({health:boolean, version})`; `MBSync.account.export()` -> JSON blob URL or object;
+  `MBSync.account.delete()` -> boolean (Edge Function `delete-account`: cancels Stripe subscription, deletes storage + auth user).
