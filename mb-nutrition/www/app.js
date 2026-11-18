@@ -34,7 +34,7 @@ const short=s=>parse(s).toLocaleDateString("fr-FR",{day:"numeric",month:"short"}
 const KEY="mbn.app.v3";
 const PROFILE0={stepsGoal:8000,prenom:"",sexe:"h",age:30,taille:175,poids:75,objectif:"forme",seances:3,intensite:2,sport:"Musculation",moment:"soir",regime:"omni",allergies:[],salle:""};
 const BLANK={mode:null,example:true,profile:structuredClone(PROFILE0),code:null,clientId:null,plan:null,log:{},water:{},shop:{},checkins:[],trainings:[],weights:[],steps:{},lastExport:null,
-  health:{on:false},hr:{},sleep:{},active:{},fasts:[],foods:{},measures:[],progress:[],theme:"auto",msgSeen:null,
+  health:{on:false},hr:{},sleep:{},active:{},fasts:[],foods:{},measures:[],progress:[],theme:"auto",msgSeen:null,billing:null, /* {status,active,periodEnd,at} dernier état Stripe connu */
   shopAsk:{}, /* {iso: true|false} réponse à « Courses faites ? » */
   reminders:{seance:{on:false},courses:{on:false},repas:{on:false,t:"12:00"},eau:{on:false,t:"10:30"},pesee:{on:false,t:"07:30"},point:{on:false,t:"18:00"}}};
 let S;
@@ -226,7 +226,7 @@ V.journal=v=>{
      return '<div class="mrow'+(es.length?" done":"")+'"><span class="ico"><svg aria-hidden="true"><use href="#'+ic+'"/></svg></span><span><b>'+name+'</b>'+(es.length?'':'<span class="sub">'+esc(pl.t)+'</span>')+'</span><span class="k">'+fmt(es.length?k:pl.tot.k)+'<small> kcal</small></span>'+
       (es.length?'<button class="plus" data-add="'+i+'" aria-label="Ajouter : '+name.toLowerCase()+'"><svg aria-hidden="true"><use href="#i-plus"/></svg></button>':'<button class="plus" data-quick="'+i+'" aria-label="Noter le repas prévu : '+esc(pl.t)+'" title="Noter le repas prévu"><svg aria-hidden="true"><use href="#i-check"/></svg></button>')+
       (es.length?'<ul class="entries">'+es.map(e=>'<li class="entry'+(e.photo?" has-ph":"")+'">'+(e.photo?'<span class="thumb" data-ph="'+e.photo+'" role="img" aria-label="Photo"></span>':'')+'<span><b>'+esc(e.name)+'</b></span><span class="k">'+fmt(e.k)+'</span><button class="x" data-del="'+e.id+'" aria-label="Retirer '+esc(e.name)+'"><svg aria-hidden="true"><use href="#i-x"/></svg></button></li>').join("")+'</ul>':'')+'</div>';}).join("")+(!log.length&&selDate<=todayIso()&&dayLog(addDays(selDate,-1)).length?'<button class="hint" id="same" style="margin-top:6px"><svg aria-hidden="true"><use href="#i-copy"/></svg>Même chose qu\'hier</button>':'')+'</section>'+
-   nudge()+'<div class="tiles">'+
+   payAlert()+callCard()+nudge()+'<div class="tiles">'+
     '<button class="tile" data-tile="water"><span class="tl c-water">Eau<svg aria-hidden="true"><use href="#i-drop"/></svg></span><span><span class="n">'+dec(water*.25,water%4?2:0)+'<small> / 2 L</small></span><span class="track" style="display:block;margin-top:8px"><i style="background:var(--water);transform:scaleX(0)" data-x="'+Math.min(1,water/8)+'"></i></span></span></button>'+
     '<button class="tile" data-tile="steps"><span class="tl c-steps">Pas<svg aria-hidden="true"><use href="#i-steps"/></svg></span><span><span class="n">'+fmt(steps)+'</span><span class="track" style="display:block;margin-top:8px"><i style="background:var(--steps);transform:scaleX(0)" data-x="'+Math.min(1,steps/goal)+'"></i></span>'+(S.health.on&&steps&&S.health.steps?.[selDate]===steps?'<span class="via">via Santé</span>':'')+'</span></button>'+
     (S.hr[selDate]?(x=>'<button class="tile" data-tile="hr"><span class="tl c-hr">Cœur<svg aria-hidden="true"><use href="#i-heart"/></svg></span><span><span class="n">'+(x.resting||x.avg||"–")+'<small> bpm</small></span><span class="sub">'+(x.resting?"au repos":"en moyenne")+(x.resting&&x.avg?" · moy. "+x.avg:"")+'</span></span></button>')(S.hr[selDate]):'')+
@@ -252,7 +252,7 @@ V.journal=v=>{
   $$("[data-add]",v).forEach(b=>b.onclick=()=>addSheet(+b.dataset.add));
   $$("[data-quick]",v).forEach(b=>b.onclick=()=>addEntry(entryFromMeal(WEEK[dow(selDate)][+b.dataset.quick],+b.dataset.quick)));
   $$("[data-del]",v).forEach(b=>b.onclick=()=>{const day=selDate,L=S.log[day],i=L.findIndex(e=>e.id===b.dataset.del),e=L[i];let undone=false;L.splice(i,1);save();rerender();toast("Retiré",()=>{undone=true;(S.log[day]=S.log[day]||[]).splice(i,0,e);save();rerender();});if(e.photo)setTimeout(()=>{if(!undone)PH.del(e.photo);},6000);});
-  bindNudge(v);$("#same",v)&&($("#same",v).onclick=()=>{const y=dayLog(addDays(selDate,-1)),day=selDate;S.log[day]=y.map(e=>{const c=Object.assign({},e,{id:"e"+uid()});delete c.photo;if(c.kind==="photo")c.kind="copy";return c;});save();rerender();$$(".mrow .ico",v).forEach((x,i)=>setTimeout(()=>pulse(x),i*30));toast("+ "+fmt(eatenOf(day).k)+" kcal",()=>{delete S.log[day];save();rerender();});});
+  bindNudge(v);bindPay(v);$("#same",v)&&($("#same",v).onclick=()=>{const y=dayLog(addDays(selDate,-1)),day=selDate;S.log[day]=y.map(e=>{const c=Object.assign({},e,{id:"e"+uid()});delete c.photo;if(c.kind==="photo")c.kind="copy";return c;});save();rerender();$$(".mrow .ico",v).forEach((x,i)=>setTimeout(()=>pulse(x),i*30));toast("+ "+fmt(eatenOf(day).k)+" kcal",()=>{delete S.log[day];save();rerender();});});
   $$("[data-tile]",v).forEach(b=>b.onclick=()=>({water:()=>water1(1,b),steps:stepsSheet,train:trainingSheet,weight:weightSheet,ci:checkinSheet,hr:hrSheet,sleep:sleepSheet,fast:fastSheet})[b.dataset.tile]());};
 function rerender(focusSel){const v=$("#view");header(cur());V[cur()](v);hydratePhotos(v);if(focusSel)$(focusSel,v)?.focus({preventScroll:true});}
 function water1(n,btn){const w=Math.max(0,Math.min(16,(S.water[selDate]||0)+n));S.water[selDate]=w;save();if(cur()==="journal"){rerender('[data-tile="water"]');pulse($('[data-tile="water"]'));}toast(dec(w*.25,w%4?2:0)+" L"+(w===8?" · objectif atteint":""),()=>{S.water[selDate]=Math.max(0,w-n);save();if(cur()==="journal")rerender();});}
@@ -348,8 +348,8 @@ function quick(){$(".fab").setAttribute("aria-expanded","true");const h=new Date
    '</div><button class="btn line block" data-a="ci"><svg aria-hidden="true"><use href="#i-pulse"/></svg>Point de la semaine</button></div>',(sh,close)=>{
     $$("[data-a]",sh).forEach(b=>b.onclick=()=>{const a=b.dataset.a;close();selDate=todayIso();const go2=cur()!=="journal"&&["meal","water","fast"].includes(a);if(go2)go("journal");
       setTimeout(()=>({meal:()=>addSheet(slot),photo:()=>addSheet(slot,"photo"),steps:stepsSheet,train:trainingSheet,weight:weightSheet,water:()=>water1(1,$(".fab")),ci:checkinSheet,fast:fastSheet,scan:()=>addSheet(slot,"scan"),measure:measureSheet})[a](),go2?340:240);});});}
-V.plan=v=>{let tab=V.plan.tab||"semaine",d=V.plan.day??dow(todayIso());
-  v.innerHTML='<div class="segs" aria-label="Plan">'+[["semaine","Semaine"],["recettes","Recettes"],["courses","Courses"]].map(([k,l])=>'<button data-t="'+k+'" aria-pressed="'+(k===tab)+'">'+l+'</button>').join("")+'<span class="sel" aria-hidden="true"></span></div><div id="pB" class="stack"></div>';
+V.plan=v=>{if(locked()){v.innerHTML=payHtml();bindPay(v);return;}let tab=V.plan.tab||"semaine",d=V.plan.day??dow(todayIso());
+  v.innerHTML='<div class="segs" aria-label="Plan">'+[["semaine","Semaine"],["recettes","Recettes"],["courses","Courses"]].map(([k,l])=>'<button data-t="'+k+'" aria-pressed="'+(k===tab)+'">'+l+'</button>').join("")+'<span class="sel" aria-hidden="true"></span></div>'+checkNote()+'<div id="pB" class="stack"></div>';
   const segs=$(".segs",v),B=$("#pB",v),draw=()=>{if(tab==="semaine")semaine(B,d,n=>{d=V.plan.day=n;});else if(tab==="recettes")recettes(B);else courses(B);reveal(B);};
   requestAnimationFrame(()=>slide($(".sel",segs),$('[aria-pressed="true"]',segs),segs,false));
   $$("[data-t]",segs).forEach(b=>b.onclick=()=>{if(b.dataset.t===tab)return;tab=V.plan.tab=b.dataset.t;$$("[data-t]",segs).forEach(x=>x.setAttribute("aria-pressed",x===b));slide($(".sel",segs),b,segs);
@@ -451,10 +451,10 @@ V.profil=v=>{const P=S.profile,code=S.code&&parseCode(S.code);
    (S.example?'':'<section class="card stack"><div class="row between"><h2>Mon profil</h2><span class="pill">'+(planKcal()?fmt(planKcal())+' kcal/j · Melvin':fmt(targetKcal(P))+' kcal/j estimées')+'</span></div><ul class="hist">'+[["Profil",(P.sexe==="f"?"Femme":"Homme")+", "+P.age+" ans, "+P.taille+" cm"],["Entraînement",P.sport+", "+plural(P.seances,"séance")+" / sem., "+INT_TXT[P.intensite-1].toLowerCase()],["Alimentation",REG_TXT[P.regime]],["Allergies",P.allergies.map(a=>ALL_TXT[a]).join(", ")||"Aucune"]].map(([a,b])=>'<li><span class="mute">'+a+'</span><b>'+b+'</b></li>').join("")+'</ul></section>')+
    '<section class="card stack"><span class="eyebrow">Compte client</span><h2>'+(code?"Connecté avec votre code":"Vous avez reçu un code ?")+'</h2><p class="small mute">'+(code?"Portions réglées par Melvin à "+pct()+" % · objectif « "+OBJECTIFS[code.obj].label+" ».":"Code ou plan envoyé par Melvin.")+'</p>'+(code?'<span class="code">'+esc(S.code)+'</span><form class="row" id="cF" style="gap:8px"><label class="sr" for="cI">Nouveau plan de Melvin</label><input class="input" id="cI" placeholder="Coller un plan de Melvin" autocomplete="off" spellcheck="false"><button class="btn soft" type="submit">OK</button></form><button class="lnk" id="cX" style="justify-self:start">Me déconnecter de ce code</button>':'<form class="row" id="cF" style="gap:8px"><label class="sr" for="cI">Code client</label><input class="input" id="cI" placeholder="MB-FORME-115-K7Q2-X" autocomplete="off" spellcheck="false"><button class="btn gold" type="submit">Valider</button></form>')+'</section>'+
    (coachOn?'<a class="card row between" href="#coach" style="text-decoration:none"><span class="row"><span class="ico"><svg aria-hidden="true"><use href="#i-coach"/></svg></span><span><b style="color:var(--ink)">Espace coach</b><br><span class="small mute">Vos clients, leurs suivis, leurs codes</span></span></span><svg class="chev" style="transform:rotate(-90deg)" aria-hidden="true"><use href="#i-chev"/></svg></a>':'')+
-   accountCard()+healthCard()+remindersCard()+themeCard()+
+   accountCard()+subCard()+healthCard()+remindersCard()+themeCard()+
    '<section class="card stack"><span class="eyebrow">Contact</span><h2>Melvin BEGUE</h2><p class="small mute">Coach sportif · Master STAPS EOPS</p><div class="row" style="flex-wrap:wrap;gap:10px"><a class="btn" href="'+wa("Bonjour Melvin, ")+'" target="_blank" rel="noopener"><svg aria-hidden="true"><use href="#i-wa"/></svg>WhatsApp</a><button class="btn line" data-copy="'+TEL_TXT+'"><svg aria-hidden="true"><use href="#i-copy"/></svg>'+TEL_TXT+'</button></div></section>'+
    '<section class="card stack"><span class="eyebrow">Mes données</span><p class="small">'+(online()?"Journal, poids, séances, mensurations et points sont synchronisés avec votre compte pour Melvin. Les photos de repas restent sur ce téléphone.":"Journal, photos, poids et séances restent sur ce téléphone. Rien ne part chez Melvin sans que vous l\'envoyiez.")+'</p><div id="rz"><button class="btn line" id="rz1">Effacer mes données</button></div></section>'+legal;
-  $$("[data-copy]",v).forEach(b=>b.onclick=()=>copy(b.dataset.copy,b));bindHealth(v);bindTheme(v);bindReminders(v);bindAccount(v);
+  $$("[data-copy]",v).forEach(b=>b.onclick=()=>copy(b.dataset.copy,b));bindHealth(v);bindTheme(v);bindReminders(v);bindAccount(v);bindPay(v);
   $("#cF")&&($("#cF").onsubmit=e=>{e.preventDefault();if(!applyInput($("#cI").value)){$("#cI").focus();return;}route();});
   $("#cX")&&($("#cX").onclick=()=>{S.code=null;S.clientId=null;S.plan=null;save();route();});
   $("#rz1").onclick=()=>{$("#rz").innerHTML='<div class="stack"><p class="small">Bilan, journal, photos, poids, séances et points seront effacés de ce téléphone.</p><div class="row" style="gap:8px"><button class="btn soft" id="rzN">Annuler</button><button class="btn danger" id="rzY">Tout effacer</button></div></div>';$("#rzN").focus();
@@ -605,7 +605,7 @@ function bindHealth(v){$("#hR",v)&&($("#hR",v).onclick=healthSheet);
     S.health={on:true,steps:{}};save();toast("Santé connectée");await healthPull();rerender();});
   $("#hS",v)&&($("#hS",v).onclick=async e=>{pulse(e.currentTarget);await healthPull();toast("Synchronisé");});
   $("#hX",v)&&($("#hX",v).onclick=()=>{S.health={on:false};save();rerender();toast("Santé déconnectée · données importées conservées");});}
-function onResume(){healthPull();if(syncOn()&&!acct)MBSync.session().then(s=>{if(s&&!acct){acct=s;onLogin(false);}});if(online()){pullPlan();checkUnread();if(syncCoach)loadSyncClients();}}
+function onResume(){healthPull();if(syncOn()&&!acct)MBSync.session().then(s=>{if(s&&!acct){acct=s;onLogin(false);}});if(online()){pullPlan();checkUnread();pullBilling();if(syncCoach)loadSyncClients();}}
 /* Apparence : auto = réglage du téléphone */
 function applyTheme(){const t=S.theme;if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;else delete document.documentElement.dataset.theme;}
 const themeCard=()=>'<section class="card stack"><span class="eyebrow">Apparence</span><div class="segs" id="thS" role="group" aria-label="Thème">'+[["auto","Automatique"],["light","Clair"],["dark","Sombre"]].map(([k,l])=>'<button data-th="'+k+'" aria-pressed="'+((S.theme||"auto")===k)+'">'+l+'</button>').join("")+'<span class="sel" aria-hidden="true"></span></div></section>';
@@ -749,8 +749,8 @@ async function onLogin(fresh){if(!acct)return;subscribeMsgs();
   if(acct.role==="coach"){syncCoach=coachOn=true;loadSyncClients();if(fresh||cur()==="accueil")go("coach");else if(["profil","accueil"].includes(cur()))route();return;}
   if(!S.mode||S.mode==="demo"){S.mode="client";save();}
   if(fresh)go(S.example?"bilan":"journal");else if(!$(".sheet"))rerender();
-  pullPlan();pushSoon();checkUnread();}
-async function signOut(){await MBSync.signOut();acct=null;unsub&&unsub();unsub=null;unread=false;if(syncCoach){syncCoach=coachOn=false;sClients=null;sOpen=null;}toast("Déconnecté de votre compte");route();}
+  pullPlan();pushSoon();checkUnread();pullBilling();registerPush();}
+async function signOut(){await MBSync.signOut();acct=null;S.billing=null;nCall=null;save();unsub&&unsub();unsub=null;unread=false;if(syncCoach){syncCoach=coachOn=false;sClients=null;sOpen=null;}toast("Déconnecté de votre compte");route();}
 /* Envoi en arrière-plan après chaque enregistrement (2 s de calme), seulement ce qui a changé */
 function pushSoon(){if(!online()||acct.role==="coach"||S.example)return;clearTimeout(pT);pT=setTimeout(pushNow,2000);}
 const dayPayload=d=>{const h=S.hr[d];return{log:S.log[d]||[],water:S.water[d]||0,steps:S.steps[d]||0,health:{hr:h?{avg:h.avg,min:h.min,max:h.max,resting:h.resting,hrv:h.hrv}:null,sleepMin:S.sleep[d]||null,activeKcal:S.active[d]||null},fasting:S.fasts.filter(f=>iso(new Date(f.start))===d)};};
@@ -769,7 +769,7 @@ function updateDot(){if(["journal","profil"].includes(cur()))header(cur());const
 function subscribeMsgs(){unsub&&unsub();unsub=MBSync.messages.subscribe(m=>{if(!m||!acct)return;const mine=m.sender_id===acct.userId;
   if(chatDraw&&$("#chL")&&m.client_id===chatFor){if(!msgs.some(x=>x.id===m.id))msgs.push(m);chatDraw();if(!mine)MBSync.messages.markRead(acct.role==="coach"?chatFor:undefined);}
   else if(!mine&&acct.role!=="coach"){unread=true;updateDot();toast("Nouveau message de Melvin");}});}
-function chatSheet(cid,name){chatFor=cid||acct.userId;msgs=[];
+function chatSheet(cid,name){if(!cid&&locked())return paySheet();chatFor=cid||acct.userId;msgs=[];
   sheet('<div class="stack"><span class="eyebrow">Messages</span><h2>'+esc(name||"Melvin BEGUE")+'</h2><div class="chat" id="chL" aria-live="polite"><p class="small mute">Chargement…</p></div><form class="row" id="chF" style="gap:8px"><label class="sr" for="chI">Votre message</label><input class="input" id="chI" maxlength="4000" placeholder="Écrire un message…" autocomplete="off"><button class="btn" type="submit">Envoyer</button></form></div>',sh=>{
     const L=$("#chL",sh);chatDraw=()=>{L.innerHTML=msgs.length?msgs.map(m=>'<p class="bub'+(m.sender_id===acct.userId?" me":"")+'">'+esc(m.body)+'<small>'+msgTime(m.created_at)+'</small></p>').join(""):'<p class="small mute">Aucun message pour l\'instant.'+(cid?"":" Écrivez à Melvin : il vous répond ici.")+'</p>';L.scrollTop=L.scrollHeight;};
     MBSync.messages.list(cid).then(r=>{if(!sh.isConnected)return;if(r==null){L.innerHTML='<p class="small mute">Messages indisponibles hors connexion.</p>';return;}msgs=r;chatDraw();MBSync.messages.markRead(cid);if(!cid){unread=false;updateDot();}});
@@ -779,6 +779,46 @@ function accountCard(){if(!syncOn())return '';
   return online()?'<section class="card stack"><div class="row between"><span class="eyebrow">Compte en ligne</span><span class="pill ok"><i></i>Synchronisé</span></div><p class="small mute">'+esc(acct.email)+'</p><div class="row" style="gap:8px;flex-wrap:wrap">'+(acct.role==="coach"?'':'<button class="btn sm" id="acM"><svg aria-hidden="true"><use href="#i-chat"/></svg>Messages<span class="udot" id="msgDot" style="position:static;margin-left:2px"'+(unread?'':' hidden')+'></span></button>')+'<button class="btn sm line" id="acX">Me déconnecter</button></div></section>':
    '<section class="card stack"><span class="eyebrow">Compte en ligne</span><h2>Suivi en direct avec Melvin</h2><p class="small mute">Melvin vous a invité ? Connectez-vous avec votre e-mail : votre journal part tout seul chez lui, son plan arrive dans l\'appli et vous échangez par messages.</p><button class="btn gold block" id="acL">Me connecter par e-mail</button></section>';}
 function bindAccount(v){$("#acL",v)&&($("#acL",v).onclick=loginSheet);$("#acX",v)&&($("#acX",v).onclick=signOut);$("#acM",v)&&($("#acM",v).onclick=()=>chatSheet());}
+/* ───────── Abonnement (Stripe 87 €/mois), calls (Cal.com) : seulement client connecté en ligne ───────── */
+const PRICE=87,billOn=()=>online()&&acct.role!=="coach";
+/* Jamais vérifié (hors ligne) : on ne bloque pas */
+const locked=()=>billOn()&&S.billing?.active===false;
+let nCall=null;
+async function pullBilling(){if(!billOn())return;let b=null;try{b=await MBSync.billing?.status?.();}catch(e){}
+  if(b&&typeof b==="object"){const nb={status:String(b.status||"none"),active:!!b.active,periodEnd:b.periodEnd||null},o=S.billing,chg=!o||o.status!==nb.status||o.active!==nb.active||o.periodEnd!==nb.periodEnd;S.billing=Object.assign(nb,{at:Date.now()});save();if(chg&&!$(".sheet"))rerender();}
+  pullCall();}
+async function pullCall(){if(!billOn()||locked())return;let c=null;try{c=await MBSync.calls?.next?.();}catch(e){return;}c=c&&c.start?c:null;
+  if(JSON.stringify(c)!==JSON.stringify(nCall)){nCall=c;if(cur()==="journal"&&!$(".sheet"))rerender();}}
+const openUrl=u=>{try{if(window.MBNative?.openUrl)return MBNative.openUrl(u);}catch(e){}location.href=u;};
+async function billGo(kind,btn){if(btn)btn.disabled=true;let u=null;try{u=await MBSync.billing?.[kind]?.();}catch(e){}if(btn)btn.disabled=false;
+  if(typeof u!=="string"||!/^https:\/\//.test(u)){toast("Paiement indisponible pour l'instant, réessayez");return;}openUrl(u);}
+const frDate=t=>{const d=new Date(t);return t&&!isNaN(d)?d.toLocaleDateString("fr-FR",{day:"numeric",month:"long",year:"numeric"}):"";};
+const callWhen=t=>{const d=new Date(t);return isNaN(d)?"":d.toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long"})+" à "+hhmm(+d);};
+const BILL={active:["Actif","ok","Actif"],trialing:["Actif","ok","Actif"],comp:["Accès offert","ok","Offert"],past_due:["Paiement en échec","bad","En échec"]},billOf=st=>BILL[st]||["Inactif","","Inactif"];
+const checkNote=()=>billOn()&&!S.billing&&window.MBSync?.billing?'<p class="small mute">Vérification de l\'abonnement…</p>':'';
+function payAlert(){return billOn()&&S.billing?.status==="past_due"?'<section class="card stack pay-alert" role="alert"><b>Paiement en échec</b><p class="small">Le dernier prélèvement de votre abonnement n\'est pas passé. Mettez à jour votre moyen de paiement pour garder l\'accès.</p><button class="btn block" data-portal>Mettre à jour mon paiement</button></section>':'';}
+function payHtml(){return payAlert()+'<section class="card stack paywall"><span class="eyebrow">Abonnement</span><h2>Le suivi complet avec Melvin</h2><p class="price"><b>'+PRICE+' €</b> / mois</p><ul class="incl">'+
+  ["Plan sur mesure, ajusté par Melvin","Messages avec Melvin","Calls illimités avec Melvin","Suivi santé : poids, séances, sommeil, cœur"].map(t=>'<li><svg aria-hidden="true"><use href="#i-check"/></svg>'+t+'</li>').join("")+
+  '</ul>'+(S.billing?.status==="past_due"?'':'<button class="btn gold block" data-checkout>M\'abonner</button>')+'<p class="small mute">Paiement sécurisé par Stripe. Vous gérez ou résiliez votre abonnement depuis Moi.</p></section><p class="small mute" style="text-align:center">Journal, tendances et profil restent accessibles sans abonnement.</p>';}
+function bindPay(r){$$("[data-checkout]",r).forEach(b=>b.onclick=()=>billGo("checkout",b));$$("[data-portal]",r).forEach(b=>b.onclick=()=>billGo("portal",b));
+  $$("[data-paysh]",r).forEach(b=>b.onclick=paySheet);$("[data-book]",r)&&($("[data-book]",r).onclick=()=>openUrl(calLink()));$("[data-join]",r)&&($("[data-join]",r).onclick=()=>openUrl(nCall.url));}
+function paySheet(){sheet('<div class="stack">'+payHtml()+'</div>',sh=>bindPay(sh));}
+function subCard(){if(!billOn())return '';const b=S.billing;
+  if(!b)return '<section class="card stack"><span class="eyebrow">Mon abonnement</span><p class="small mute">Vérification de l\'abonnement…</p></section>';
+  const[l,c]=billOf(b.status),end=frDate(b.periodEnd);
+  return '<section class="card stack"><div class="row between"><span class="eyebrow">Mon abonnement</span><span class="pill '+c+'"><i></i>'+l+'</span></div>'+
+   '<p class="small mute">'+(b.status==="comp"?"Melvin vous offre l'accès complet : plan, messages et calls.":b.active?PRICE+" € / mois"+(end?(b.status==="canceled"?" · accès jusqu'au ":" · prochain renouvellement le ")+esc(end):""):"Plan, messages et calls avec Melvin sont réservés aux abonnés.")+'</p>'+
+   (b.status==="comp"?'':b.status==="past_due"?'<button class="btn block" data-portal>Mettre à jour mon paiement</button>':b.active?'<button class="btn line block" data-portal>Gérer mon abonnement</button>':'<button class="btn gold block" data-checkout>M\'abonner · '+PRICE+' € / mois</button>')+'</section>';}
+const calLink=()=>{const u=window.MB_CONFIG?.calUrl||"";return u+(u.includes("?")?"&":"?")+"name="+encodeURIComponent(S.profile.prenom||"")+"&email="+encodeURIComponent(acct?.email||"");};
+/* shortcut: « Rejoindre » est calculé au rendu (10 min avant) ; il apparaît au prochain affichage ou retour dans l'appli */
+function callCard(){if(!billOn()||selDate!==todayIso())return '';const cal=!!window.MB_CONFIG?.calUrl,ico='<span class="ico" style="background:var(--ink);color:var(--on-ink)"><svg aria-hidden="true"><use href="#i-video"/></svg></span>';
+  if(locked())return '<section class="card nudge">'+ico+'<span><b>Calls avec Melvin</b><span class="sub">Réservés aux abonnés</span></span><div class="row"><button class="btn sm line" data-paysh>Voir l\'abonnement</button></div></section>';
+  const c=nCall,s=c&&new Date(c.start),now=Date.now(),join=c&&c.url&&/^https:\/\//.test(c.url)&&now>=s-6e5&&now<new Date(c.end||+s+36e5);
+  if(!c&&!cal)return '';
+  return '<section class="card nudge">'+ico+'<span><b>'+(c?"Mon prochain call":"Un call avec Melvin")+'</b><span class="sub">'+(c?esc(callWhen(c.start)):"Calls illimités avec votre abonnement")+'</span></span><div class="row">'+(join?'<button class="btn sm gold" data-join>Rejoindre</button>':'')+(cal?'<button class="btn sm '+(join?"line":"soft")+'" data-book>Réserver un call avec Melvin</button>':'')+'</div></section>';}
+/* Push : jeton envoyé au serveur après connexion (appli native) */
+async function registerPush(){if(!native()||!billOn())return;try{const r=await MBNative.push?.register?.();if(r&&r.token)await MBSync.push?.register?.(r.token,r.platform);}catch(e){}}
+function onPushTap(d){const x=(d&&d.data)||{};if(x.view==="chat"){if(billOn())chatSheet();else go("journal");}else if(ALL.includes(x.view))go(x.view);}
 /* Espace coach en ligne : fiches lues sur le serveur au lieu de la base de l'artifact */
 let sClients=null,sOpen=null;
 async function loadSyncClients(){sClients=await MBSync.coach.clients();if(cur()==="coach"&&!$(".sheet"))V.coach($("#view"));}
@@ -809,6 +849,6 @@ async function syncClientView(v){v.innerHTML='<button class="lnk" id="bk" style=
 S=load();save();applyTheme();renderTabs();addEventListener("hashchange",route);
 const realign=()=>{const a=$('#tabs a[aria-current="page"]');a&&slide($("#tabs .ind"),a,$("#tabs"),false);$$(".dates,.segs").forEach(p=>slide($(".sel",p),$('[aria-pressed="true"]',p),p,false));};
 addEventListener("resize",realign);route();document.fonts?.ready.then(realign);initCaps();
-Promise.resolve(window.MBHealth?.available?.()).then(ok=>{hOK=!!ok;if(!hOK)return;healthPull();if(cur()==="profil"&&!$(".sheet"))rerender();}).catch(()=>{});if(syncOn())MBSync.session().then(s=>{if(s){acct=s;onLogin(false);}});document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")onResume();});
+Promise.resolve(window.MBHealth?.available?.()).then(ok=>{hOK=!!ok;if(!hOK)return;healthPull();if(cur()==="profil"&&!$(".sheet"))rerender();}).catch(()=>{});if(syncOn())MBSync.session().then(s=>{if(s){acct=s;onLogin(false);}});try{window.MBNative?.push?.onTap?.(onPushTap);}catch(e){}document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")onResume();});
 })();
 
