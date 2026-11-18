@@ -3,7 +3,8 @@
 import { createClient } from "npm:@supabase/supabase-js@2.119.0";
 import Anthropic from "npm:@anthropic-ai/sdk@1.10.0";
 
-const MODEL = "claude-opus-5-5";
+// Sonnet 5.5: about half the Opus price, enough for a photo -> JSON estimate. SDK 1.10.0 types accept fallbacks: "default".
+const MODEL = "claude-sonnet-5-5";
 const anthropic = new Anthropic({ apiKey: Deno.env.get("ANTHROPIC_API_KEY") ?? "" });
 const DAILY_LIMIT = 30;
 const MAX_BYTES = 1_500_000;
@@ -71,9 +72,9 @@ Deno.serve(async (req) => {
   try {
     msg = await anthropic.beta.messages.create({
       model: MODEL,
-      max_tokens: 4096,
+      max_tokens: 1024, // the JSON is ~200 tokens; low effort keeps thinking short
       betas: ["server-side-fallback-2026-07-01"],
-      fallbacks: "default", // on a safety-classifier decline, the API retries on a fallback model in the same call
+      fallbacks: "default", // on a safety-classifier decline (cyber/frontier_llm), the API retries on Sonnet 5 in the same call
       output_config: { effort: "low", format: { type: "json_schema", schema: SCHEMA } },
       messages: [{
         role: "user",
