@@ -34,5 +34,7 @@
     } catch (e) { return []; }
   }
 
-  window.MBFoods = {search};
+  // CC-BY 4.0 : à afficher là où des valeurs Ciqual apparaissent (recherche, mentions).
+  const credit = "Anses. Table de composition nutritionnelle des aliments Ciqual 2025 (CC-BY 4.0).";
+  window.MBFoods = {search, credit};
 })();

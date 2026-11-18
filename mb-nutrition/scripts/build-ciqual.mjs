@@ -1,5 +1,6 @@
-// Builds www/foods/ciqual.json from the official Ciqual XML release (Anses, Licence Ouverte Etalab 2.0).
-// Usage: unzip the Ciqual "XML" archive (ciqual.anses.fr or the Anses Zenodo record) into a folder, then
+// Builds www/foods/ciqual.json from the official Ciqual XML release.
+// Source: Anses. Table de composition nutritionnelle des aliments Ciqual 2025 (doi:10.5281/zenodo.17550133, CC-BY 4.0).
+// Usage: put the XML files (alim_*.xml, compo_*.xml) from ciqual.anses.fr or the Anses Zenodo record in a folder, then
 //   node scripts/build-ciqual.mjs <folder> [out=www/foods/ciqual.json]
 // Output: [[id, name, kcal, p, g, l, rayon]] per 100 g, sorted by name. Rows without energy are dropped.
 import { readFileSync, readdirSync, writeFileSync } from "node:fs";
@@ -11,7 +12,8 @@ const C = { kcal: ["328", "333"], p: ["25000", "25003"], g: ["31000"], l: ["4000
 // Ciqual alim_grp_code → rayon of the app.
 const RAYON = { 1: "Traiteur", 2: "Fruits et légumes", 3: "Épicerie", 4: "Protéines", 5: "Crèmerie", 6: "Boissons",
   7: "Épicerie", 8: "Surgelés", 9: "Épicerie", 10: "Épicerie", 11: "Épicerie" };
-const BAKERY = /^(pain|baguette|biscotte|croissant|brioche|pain au chocolat|viennoiserie|chausson)/i;
+// Sub-groups that sit in another rayon than their group (légumineuses, fruits à coque, pains, viennoiseries, beurres).
+const SSGRP = { 203: "Épicerie", 205: "Épicerie", 302: "Boulangerie", 705: "Boulangerie", 901: "Crèmerie" };
 
 const decode = (buf) => {
   const enc = /encoding="([^"]+)"/i.exec(buf.subarray(0, 200).toString("latin1"))?.[1] || "utf-8";
@@ -56,8 +58,7 @@ export function build(dir) {
     if (!Number.isFinite(id) || kcal == null) continue;
     const name = unescape(a.alim_nom_fr || "").replace(/\s+/g, " ").trim();
     if (!name) continue;
-    const grp = parseInt(a.alim_grp_code, 10);
-    const rayon = BAKERY.test(name) ? "Boulangerie" : /^beurre/i.test(name) ? "Crèmerie" : RAYON[grp] || "Épicerie";
+    const rayon = SSGRP[parseInt(a.alim_ssgrp_code, 10)] || RAYON[parseInt(a.alim_grp_code, 10)] || "Épicerie";
     rows.push([id, name, r1(kcal), r1(get(v, C.p) ?? 0), r1(get(v, C.g) ?? 0), r1(get(v, C.l) ?? 0), rayon]);
   }
   return rows.sort((x, y) => x[1].localeCompare(y[1], "fr"));
