@@ -26,7 +26,11 @@ L'appli demande un code, pas un lien (un lien ouvrirait le navigateur au lieu de
    `Votre code MB NUTRITION : <h2>{{ .Token }}</h2> Il est valable 1 heure.`
    Faites de même dans le modèle **Confirm signup**. Enregistrez.
 2. **Authentication > Sign In / Providers > Email** : vérifiez que « Email OTP Length » vaut **6**.
-3. L'envoi d'e-mails inclus dans l'offre gratuite est limité à quelques e-mails par heure. Avant d'inviter
+3. **Authentication > Sign In / Providers** : désactivez **Allow new users to sign up**. Seuls les clients que vous
+   invitez peuvent se connecter (personne ne peut créer de compte tout seul et consommer votre budget IA).
+   Pour ajouter un client : **Authentication > Users > Add user > Send invitation**, avec son e-mail.
+   Il ouvre ensuite l'appli, tape son e-mail et reçoit son code.
+4. L'envoi d'e-mails inclus dans l'offre gratuite est limité à quelques e-mails par heure. Avant d'inviter
    tous vos clients, branchez votre propre service d'e-mail (**Authentication > Emails > SMTP Settings**, par exemple Brevo, gratuit).
 
 ## 4. Brancher l'appli
@@ -41,7 +45,7 @@ L'appli demande un code, pas un lien (un lien ouvrirait le navigateur au lieu de
 
 ## 5. Devenir le coach (Melvin)
 
-1. Connectez-vous une première fois dans l'appli avec votre e-mail (vous recevez un code).
+1. Invitez-vous vous-même (**Authentication > Users > Add user**), puis connectez-vous une première fois dans l'appli avec votre e-mail (vous recevez un code).
 2. Dans **SQL Editor**, lancez ces deux lignes en mettant votre e-mail :
    ```sql
    update profiles set role = 'coach' where email = 'votre.email@exemple.fr';

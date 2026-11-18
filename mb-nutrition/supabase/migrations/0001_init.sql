@@ -95,7 +95,8 @@ create function public.ai_take(lim int) returns boolean
 language sql volatile security definer set search_path = public as $$
   insert into ai_usage (client_id) values (auth.uid())
   on conflict (client_id, day) do update set n = ai_usage.n + 1
-  returning n < lim;   -- first insert stores n = 0, so lim calls are allowed per day
+  returning n < lim   -- first insert stores n = 0, so lim calls are allowed per day
+    and (select coalesce(sum(n), 0) from ai_usage where day = current_date) < 1000;  -- global daily cap on the AI bill
 $$;
 revoke execute on function public.ai_take(int) from public, anon;
 
@@ -166,7 +167,8 @@ grant update (read_at) on public.messages to authenticated;
 create policy ai_usage_read on public.ai_usage for select using (client_id = auth.uid());
 
 -- ---------- Storage: private bucket 'photos', key = <client_id>/… ----------
-insert into storage.buckets (id, name, public) values ('photos', 'photos', false) on conflict (id) do nothing;
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+  values ('photos', 'photos', false, 2097152, '{image/jpeg}') on conflict (id) do nothing;
 
 create policy photos_own on storage.objects for all to authenticated
   using      (bucket_id = 'photos' and (storage.foldername(name))[1] = auth.uid()::text)

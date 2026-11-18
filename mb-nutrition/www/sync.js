@@ -29,7 +29,7 @@
     if (!s) throw new Error("no session");
     return s.user.id;
   }
-  var iso = function (d) { return d.toISOString().slice(0, 10); };
+  var iso = function (d) { return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }; // local date, like app.js
 
   // Downscale to ≤1280px JPEG (keeps uploads small, and the Edge Function only accepts JPEG ≤1.5 MB).
   async function toJpeg(blob) {
@@ -66,7 +66,8 @@
     session: session,
 
     signIn: safe(async function (email) {
-      ok(await sb.auth.signInWithOtp({ email: String(email).trim(), options: { shouldCreateUser: true } }));
+      // shouldCreateUser false: only clients invited by the coach (Supabase dashboard) can sign in.
+      ok(await sb.auth.signInWithOtp({ email: String(email).trim(), options: { shouldCreateUser: false } }));
       return true;
     }, false),
     verify: safe(async function (email, code) {
