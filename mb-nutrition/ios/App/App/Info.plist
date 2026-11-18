@@ -68,6 +68,10 @@
 	<string>MB NUTRITION lit vos pas, votre fréquence cardiaque, votre sommeil, vos calories actives et votre poids pour adapter votre suivi nutritionnel. Ces données ne sont jamais vendues.</string>
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>MB NUTRITION n'écrit aucune donnée dans Santé.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+	</array>
 	<key>NSCameraUsageDescription</key>
 	<string>La caméra sert à scanner le code-barres des aliments.</string>
 </dict>
