@@ -15,11 +15,11 @@ const FOODS = {
   graines:     {n:"Graines de courge", k:560,p:30,g:10,l:46, r:"Épicerie"},
   amandes:     {n:"Amandes", k:600,p:21,g:7,l:52, r:"Épicerie"},
   fblanc:      {n:"Fromage blanc 0 %", k:48,p:7.5,g:4,l:0.2, r:"Crèmerie"},
-  poulet:      {n:"Blanc de poulet", k:120,p:23,g:0,l:2.5, r:"Viandes et poissons"},
-  dinde:       {n:"Escalope de dinde", k:110,p:24,g:0,l:1.5, r:"Viandes et poissons"},
-  boeuf:       {n:"Bœuf haché 5 %", k:125,p:21,g:0,l:5, r:"Viandes et poissons"},
-  saumon:      {n:"Pavé de saumon", k:200,p:20,g:0,l:13, r:"Viandes et poissons"},
-  cabillaud:   {n:"Dos de cabillaud", k:80,p:18,g:0,l:0.7, r:"Viandes et poissons"},
+  poulet:      {n:"Blanc de poulet", k:120,p:23,g:0,l:2.5, r:"Protéines"},
+  dinde:       {n:"Escalope de dinde", k:110,p:24,g:0,l:1.5, r:"Protéines"},
+  boeuf:       {n:"Bœuf haché 5 %", k:125,p:21,g:0,l:5, r:"Protéines"},
+  saumon:      {n:"Pavé de saumon", k:200,p:20,g:0,l:13, r:"Protéines"},
+  cabillaud:   {n:"Dos de cabillaud", k:80,p:18,g:0,l:0.7, r:"Protéines"},
   thon:        {n:"Thon au naturel", k:110,p:25,g:0,l:1, r:"Épicerie"},
   lentilles:   {n:"Lentilles corail", k:340,p:24,g:50,l:2, r:"Épicerie"},
   pois_chiches:{n:"Pois chiches cuits", k:140,p:7,g:20,l:2.5, r:"Épicerie"},
@@ -67,10 +67,10 @@ const MEALS = {
       steps:["Lancez {riz} dans l'eau bouillante salée (10 à 12 min).","Faites cuire les brocolis à la vapeur ou à l'eau 8 minutes.","Saisissez {poulet} en dés dans l'huile, 6 à 8 minutes. Assaisonnez."]},
   L2:{t:"Bœuf, patate douce et haricots verts", slot:"Déjeuner", min:25,
       ing:[["boeuf",150],["pdouce",250],["hverts",200],["huile",5]],
-      steps:["Coupez la patate douce en cubes et rôtissez-la 20 min à 200 °C avec l'huile.","Faites cuire les haricots verts 8 minutes.","Saisissez {boeuf} 4 à 5 minutes à feu vif."]},
+      steps:["Coupez la patate douce en cubes et rôtissez-la 20 min à 200 °C avec l'huile.","Faites cuire les haricots verts 8 minutes.","Faites cuire {boeuf}."]},
   L3:{t:"Pâtes complètes, thon, tomates et courgettes", slot:"Déjeuner", min:15,
       ing:[["pates",90],["thon",120],["tomate",150],["courgette",150],["huile",10]],
-      steps:["Cuisez {pates} al dente.","Faites revenir courgettes et tomates en dés dans l'huile 8 minutes.","Ajoutez {thon} hors du feu et mélangez à {pates}."]},
+      steps:["Faites cuire {pates}.","Faites revenir courgettes et tomates en dés dans l'huile 8 minutes.","Hors du feu, ajoutez {thon} et {pates}. Mélangez."]},
   L4:{t:"Bowl quinoa, dinde et avocat", slot:"Déjeuner", min:20,
       ing:[["quinoa",70],["dinde",150],["avocat",60],["tomate",100],["huile",5]],
       steps:["Rincez puis cuisez le quinoa 12 minutes.","Faites dorer {dinde} en lanières dans l'huile.","Disposez le quinoa, {dinde}, l'avocat et les tomates dans un bol."]},
@@ -82,19 +82,19 @@ const MEALS = {
       steps:["Facile à glisser dans le sac de sport."]},
   S3:{t:"Tartine au beurre de cacahuète", slot:"Collation", min:2,
       ing:[["pain",50],["cacahuete",20]],
-      steps:["Une tranche de {pain}, une fine couche de {cacahuete}."]},
+      steps:["Toastez {pain}, puis étalez {cacahuete}."]},
   D1:{t:"Saumon, riz et courgettes", slot:"Dîner", min:20,
       ing:[["saumon",130],["riz",60],["courgette",250]],
       steps:["Cuisez le riz.","Faites cuire {saumon} 12 minutes au four à 200 °C.","Poêlez les courgettes en rondelles 6 minutes."]},
   D2:{t:"Omelette, pommes de terre et légumes", slot:"Dîner", min:20,
       ing:[["oeuf",150],["pdt",250],["poelee",200],["huile",5]],
-      steps:["Faites cuire les pommes de terre à l'eau 15 minutes.","Réchauffez la poêlée de légumes.","Faites cuire {oeuf} dans l'huile, en omelette ou brouillés."]},
+      steps:["Faites cuire les pommes de terre à l'eau 15 minutes.","Réchauffez la poêlée de légumes.","Faites cuire {oeuf} à la poêle dans l'huile."]},
   D3:{t:"Cabillaud, quinoa et brocolis", slot:"Dîner", min:20,
       ing:[["cabillaud",180],["quinoa",60],["brocolis",200],["huile",10]],
       steps:["Cuisez le quinoa 12 minutes.","Faites cuire {cabillaud} à la poêle dans l'huile, 4 minutes par face.","Brocolis à la vapeur 8 minutes."]},
   D4:{t:"Wraps au poulet", slot:"Dîner", min:15,
       ing:[["tortilla",120],["poulet",120],["tomate",100],["fblanc",50]],
-      steps:["Faites dorer {poulet} en lanières.","Tartinez {tortilla} de {fblanc} assaisonné.","Garnissez de {poulet} et de tomates, roulez."]},
+      steps:["Faites dorer {poulet} en lanières.","Tartinez {tortilla} avec {fblanc}, salez, poivrez.","Ajoutez {poulet} et les tomates, puis roulez."]},
   D5:{t:"Lentilles corail aux légumes et riz", slot:"Dîner", min:20,
       ing:[["lentilles",80],["riz",40],["poelee",200],["huile",10]],
       steps:["Cuisez les lentilles corail 12 minutes dans deux fois leur volume d'eau.","Cuisez le riz.","Faites revenir la poêlée dans l'huile et mélangez le tout. Épicez au curry si vous aimez."]},
@@ -109,7 +109,7 @@ const SLOT_TIME = {"Petit-déjeuner":"7h30","Déjeuner":"12h30","Collation":"16h
 const OBJECTIFS = {
   muscle:{label:"Prise de muscle", code:"MUSCLE", pct:135},
   forme: {label:"Remise en forme", code:"FORME", pct:115},
-  perte: {label:"Perte de gras", code:"SECHE", pct:100},
+  perte: {label:"Sèche", code:"SECHE", pct:100},
   perf:  {label:"Performance", code:"PERF", pct:125},
 };
 
@@ -125,5 +125,5 @@ const TITLE_TO = {tofu:"tofu", lentilles:"lentilles", pois_chiches:"pois chiches
   riz:"riz", avoine_sg:"avoine sans gluten", cabillaud:"cabillaud", saumon:"saumon", poulet:"poulet"};
 
 /* Noms utilisés dans les étapes de recette, après substitution */
-const STEP_N = {"avoine": "les flocons d'avoine", "avoine_sg": "les flocons d'avoine sans gluten", "skyr": "le skyr", "yaourt_soja": "le yaourt au soja", "oeuf": "les œufs", "tofu": "le tofu", "pain": "le pain complet", "pain_sg": "le pain sans gluten", "cacahuete": "une cuillère de beurre de cacahuète", "graines": "une cuillère de graines de courge", "amandes": "quelques amandes concassées", "fblanc": "le fromage blanc", "poulet": "le poulet", "dinde": "la dinde", "boeuf": "le bœuf haché", "saumon": "le saumon", "cabillaud": "le cabillaud", "thon": "le thon émietté", "lentilles": "les lentilles corail (12 min de cuisson)", "pois_chiches": "les pois chiches égouttés", "riz": "le riz", "pates": "les pâtes", "tortilla": "les tortillas", "tortilla_sg": "les galettes de maïs"};
+const STEP_N = {"avoine": "les flocons d'avoine", "avoine_sg": "les flocons d'avoine sans gluten", "skyr": "le skyr", "yaourt_soja": "le yaourt au soja", "oeuf": "les œufs", "tofu": "le tofu", "pain": "le pain complet", "pain_sg": "le pain sans gluten", "cacahuete": "une cuillère de beurre de cacahuète", "graines": "une cuillère de graines de courge", "amandes": "quelques amandes concassées", "fblanc": "le fromage blanc", "poulet": "le poulet", "dinde": "la dinde", "boeuf": "le bœuf haché, 4 à 5 minutes à feu vif", "saumon": "le saumon", "cabillaud": "le cabillaud", "thon": "le thon émietté", "lentilles": "les lentilles corail (12 min de cuisson)", "pois_chiches": "les pois chiches égouttés", "riz": "le riz", "pates": "les pâtes", "tortilla": "les tortillas", "tortilla_sg": "les galettes de maïs"};
 

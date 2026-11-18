@@ -361,3 +361,10 @@ textarea.input{min-height:84px;resize:vertical}
   .item:hover .nm{color:var(--ink)}
 }
 button:disabled{opacity:.45;cursor:default}
+/* Pressions homogènes (.97), zones tactiles et petits écrans */
+.dates button:active,.plus:active,.x:active,.chip:active,.opt:active,.scale5 button:active,.client:active,#tabs a:active,.act:active{transform:scale(.97)}
+.fab:active{transform:translateY(-10px) scale(.97)}
+.lnk,.pill{position:relative}.lnk::after{content:"";position:absolute;inset:-12px -4px}
+.grid2>*,.grid2 .input{min-width:0;max-width:100%}input[type=time].input{min-width:0;width:100%;-webkit-appearance:none;appearance:none}
+.toast:has(button) span{white-space:nowrap} /* undo toasts only: long messages must still wrap */
+@media (max-width:359px){.sheet .grid2{grid-template-columns:1fr}}
