@@ -181,3 +181,43 @@ test('onBrowserClosed: Browser browserFinished calls back; web is a no-op', () =
   assert.doesNotThrow(() => web.MBNative.onBrowserClosed(() => n++));
   assert.strictEqual(n, 1);
 });
+
+test('cycle(): plugin has no menstrual type -> null (manual entry), native or web', async () => {
+  const w = load({ Capacitor: { isNativePlatform: () => true, Plugins: { Health: fakeHealth() } } }, 'health.js');
+  assert.strictEqual(await w.MBHealth.cycle('2026-10-01', '2026-11-18'), null);
+  assert.strictEqual(await load({}, 'health.js').MBHealth.cycle('2026-10-01', '2026-11-18'), null);
+});
+
+test('saveFile: native writes base64 to Cache then opens the share sheet; web false', async () => {
+  const calls = [];
+  const plugins = (share) => ({
+    Filesystem: { writeFile: async (o) => { calls.push(['write', o]); return { uri: 'file:///cache/' + o.path }; } },
+    Share: { share: share || (async (o) => { calls.push(['share', o]); return {}; }) }
+  });
+  const g = { btoa, Uint8Array, String };
+  let w = loadWith(g, nativeWin(plugins()), 'native.js');
+  const blob = new Blob(['%PDF-1'], { type: 'application/pdf' });
+  assert.strictEqual(await w.MBNative.saveFile(blob, 'bilan/nov.pdf', 'application/pdf'), true);
+  assert.deepStrictEqual(plain(calls), [
+    ['write', { path: 'bilan-nov.pdf', data: Buffer.from('%PDF-1').toString('base64'), directory: 'CACHE' }],
+    ['share', { title: 'bilan-nov.pdf', files: ['file:///cache/bilan-nov.pdf'], dialogTitle: 'bilan-nov.pdf' }]
+  ]);
+  // feuille fermée sans choisir : pas un échec ; vraie erreur : false
+  w = loadWith(g, nativeWin(plugins(async () => { throw new Error('Share canceled'); })), 'native.js');
+  assert.strictEqual(await w.MBNative.saveFile(blob, 'a.pdf', 'application/pdf'), true);
+  w = loadWith(g, nativeWin(plugins(async () => { throw new Error('boom'); })), 'native.js');
+  assert.strictEqual(await w.MBNative.saveFile(blob, 'a.pdf', 'application/pdf'), false);
+  assert.strictEqual(await load({}, 'native.js').MBNative.saveFile(blob, 'a.pdf', 'application/pdf'), false);
+});
+
+test('widget.update: iOS sends clean numbers to MBWidget; Android and web false', async () => {
+  const sent = [];
+  const wg = { update: async (o) => sent.push(o) };
+  const data = { kcal: 1520.4, kcalGoal: 2100, prot: 98, protGoal: 140, steps: 'x', stepsGoal: 8000, date: '2026-11-18' };
+  assert.strictEqual(await load(nativeWin({ MBWidget: wg }), 'native.js').MBNative.widget.update(data), true);
+  assert.deepStrictEqual(plain(sent), [{ kcal: 1520, kcalGoal: 2100, prot: 98, protGoal: 140, steps: 0, stepsGoal: 8000, date: '2026-11-18' }]);
+  assert.strictEqual(await load(nativeWin({ MBWidget: wg }, 'android'), 'native.js').MBNative.widget.update(data), false);
+  assert.strictEqual(await load({}, 'native.js').MBNative.widget.update(data), false);
+  const bad = { update: async () => { throw new Error('no app group'); } };
+  assert.strictEqual(await load(nativeWin({ MBWidget: bad }), 'native.js').MBNative.widget.update(data), false);
+});

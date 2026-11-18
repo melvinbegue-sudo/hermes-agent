@@ -160,6 +160,11 @@
       return out;
     },
 
+    // @capgo/capacitor-health 8.13 (dernière version) n'expose pas le flux menstruel
+    // (ni HealthKit menstrualFlow ni Health Connect MenstruationFlow) : null -> l'app passe à la saisie manuelle.
+    // shortcut: toujours null, brancher readSamples('menstrualFlow') quand le plugin l'ajoutera.
+    cycle: async function () { return null; },
+
     latestWeight: async function () {
       try {
         if (!(await this.available())) return null;

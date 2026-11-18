@@ -1,4 +1,4 @@
-/* MB NUTRITION — window.MBNative : scanner code-barres, notifications locales + push, ouverture de liens.
+/* MB NUTRITION — window.MBNative : scanner code-barres, notifications locales + push, liens, partage de fichiers, widget iOS.
    Contrat : ARCHITECTURE.md. Script simple ; dans un navigateur : scanner BarcodeDetector si dispo, notifications/push = false/null. */
 (function () {
   'use strict';
@@ -129,6 +129,35 @@
         } catch (e) { return null; }
       },
       onTap: function (cb) { onEvent('FirebaseMessaging', 'notificationActionPerformed', function (e) { return e && e.notification; }, cb); }
+    },
+
+    // PDF / export : fichier en cache puis feuille de partage (Enregistrer dans Fichiers, Mail…). Web : false -> téléchargement.
+    saveFile: async function (blob, filename, mime) {
+      try {
+        var fs = P('Filesystem'), sh = P('Share');
+        if (!fs || !sh || !blob) return false;
+        var name = String(filename || 'mb-nutrition').replace(/[\/\\:*?"<>|]+/g, '-');
+        var bytes = new Uint8Array(await blob.arrayBuffer()), bin = '';
+        for (var i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+        var w = await fs.writeFile({ path: name, data: btoa(bin), directory: 'CACHE' });
+        try { await sh.share({ title: name, files: [w.uri], dialogTitle: name }); }
+        catch (e) { if (!/cancel/i.test(String(e && e.message))) throw e; } // fermer la feuille n'est pas un échec
+        return true;
+      } catch (e) { return false; }
+    },
+
+    // Widget iPhone "Anneaux du jour" : plugin local MBWidget (App Group + rechargement WidgetKit). Ailleurs : false.
+    widget: {
+      update: async function (d) {
+        try {
+          var wg = P('MBWidget');
+          if (!wg || platform() !== 'ios' || !d) return false;
+          var n = function (x) { x = Number(x); return isFinite(x) && x > 0 ? Math.round(x) : 0; };
+          await wg.update({ kcal: n(d.kcal), kcalGoal: n(d.kcalGoal), prot: n(d.prot), protGoal: n(d.protGoal),
+            steps: n(d.steps), stepsGoal: n(d.stepsGoal), date: String(d.date || '') });
+          return true;
+        } catch (e) { return false; }
+      }
     },
 
     scanBarcode: async function () {
