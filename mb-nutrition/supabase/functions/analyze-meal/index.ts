@@ -1,8 +1,10 @@
 // analyze-meal — photo de repas -> estimation {nom,kcal,p,g,l,aliments,confiance} via Claude (vision).
 // Secrets: ANTHROPIC_API_KEY (to set). SUPABASE_URL / SUPABASE_ANON_KEY are injected by Supabase.
 import { createClient } from "npm:@supabase/supabase-js@2.119.0";
+import Anthropic from "npm:@anthropic-ai/sdk@1.10.0";
 
-const MODEL = "claude-sonnet-5-5";
+const MODEL = "claude-opus-5-5";
+const anthropic = new Anthropic({ apiKey: Deno.env.get("ANTHROPIC_API_KEY") ?? "" });
 const DAILY_LIMIT = 30;
 const MAX_BYTES = 1_500_000;
 const CORS = {
@@ -65,17 +67,12 @@ Deno.serve(async (req) => {
   if (quotaErr) return json({ error: "quota_indisponible" }, 503);
   if (!ok) return json({ error: "limite_quotidienne" }, 429);
 
-  const r = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      "x-api-key": Deno.env.get("ANTHROPIC_API_KEY") ?? "",
-      "anthropic-version": "2026-10-21",
-      "anthropic-beta": "server-side-fallback-2026-07-01",
-    },
-    body: JSON.stringify({
+  let msg;
+  try {
+    msg = await anthropic.beta.messages.create({
       model: MODEL,
       max_tokens: 4096,
+      betas: ["server-side-fallback-2026-07-01"],
       fallbacks: "default", // on a safety-classifier decline, the API retries on a fallback model in the same call
       output_config: { effort: "low", format: { type: "json_schema", schema: SCHEMA } },
       messages: [{
@@ -85,18 +82,17 @@ Deno.serve(async (req) => {
           { type: "text", text: PROMPT },
         ],
       }],
-    }),
-  }).catch(() => null);
-  if (!r || !r.ok) {
-    console.error("anthropic", r?.status, r && await r.text().catch(() => ""));
+    });
+  } catch (e) {
+    console.error("anthropic", e instanceof Anthropic.APIError ? `${e.status} ${e.message}` : e);
     return json({ error: "analyse_indisponible" }, 502);
   }
 
-  const msg = await r.json();
   if (msg.stop_reason !== "end_turn") return json({ error: "analyse_impossible", reason: msg.stop_reason }, 422);
   let out: Record<string, unknown>;
   try {
-    out = JSON.parse(msg.content.find((b: { type: string }) => b.type === "text")?.text ?? "");
+    const t = msg.content.find((b) => b.type === "text");
+    out = JSON.parse(t && t.type === "text" ? t.text : "");
   } catch {
     return json({ error: "analyse_illisible" }, 502);
   }
