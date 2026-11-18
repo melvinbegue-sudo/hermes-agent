@@ -685,14 +685,14 @@ const remSet=k=>{const r=S.reminders[k]=S.reminders[k]||{on:false},d=remOf(k);if
 /* Tous les rappels actifs ; day = null pour un rappel quotidien */
 function remList(){const w=S.profile.prenom?S.profile.prenom.split(" ")[0]+", ":"",L=[];
   REM.forEach(([k,l,,body,day])=>{const r=remOf(k);if(!r.on)return;const T=t2m(r.t);
-    if(k==="seance")r.days.forEach(d=>{L.push({id:"col"+d,day:d,min:Math.max(0,T-75),t:w+"collation : "+dayPlan(d).meals[2].t,dsc:"Séance à "+r.t+". Recette dans l'appli MB NUTRITION.",lab:JOURS_L[d]+" · collation"});L.push({id:"go"+d,day:d,min:Math.max(0,T-20),t:w+"en route pour l'entraînement",dsc:"Séance à "+r.t+". Bonne séance !",lab:JOURS_L[d]+" · en route"});});
+    if(k==="seance")r.days.forEach(d=>{L.push({id:"col"+d,day:d,min:Math.max(0,T-75),t:w+"collation : "+dayPlan(d).meals[2].t,dsc:"Séance à "+r.t+". Recette dans l'appli MB NUTRITION.",lab:JOURS_L[d]+" · collation",data:{view:"journal"}});L.push({id:"h1"+d,day:d,min:Math.max(0,T-60),t:w+"séance dans 1 h",dsc:"Séance à "+r.t+". Pensez à boire et à prendre votre collation.",lab:JOURS_L[d]+" · 1 h avant",data:{view:"journal"}});L.push({id:"go"+d,day:d,min:Math.max(0,T-20),t:w+"en route pour l'entraînement",dsc:"Séance à "+r.t+". Bonne séance !",lab:JOURS_L[d]+" · en route",data:{view:"journal"}});});
     else if(k==="courses")r.days.forEach(d=>L.push({id:"shop"+d,day:d,min:T,t:w+"courses faites ?",dsc:"Votre liste est dans l'appli MB NUTRITION : Plan › Courses.",lab:JOURS_L[d]+" · courses"}));
     else L.push({id:k,day:day??null,min:T,t:"MB NUTRITION · "+l,dsc:body,lab:(day==null?"Chaque jour":JOURS_L[day])+" · "+l.toLowerCase()});});
   return L;}
 async function scheduleReminders(){ /* weekday Capacitor : 1 = dimanche, 2 = lundi */
-  const list=remList().map((x,i)=>Object.assign({id:i+1,title:x.t,body:x.dsc,hour:Math.floor(x.min/60),minute:x.min%60},x.day!=null?{weekday:(x.day+1)%7+1}:{}));
+  const list=remList().map((x,i)=>Object.assign({id:i+1,title:x.t,body:x.dsc,...(x.data?{data:x.data}:{}),hour:Math.floor(x.min/60),minute:x.min%60},x.day!=null?{weekday:(x.day+1)%7+1}:{}));
   try{return await window.MBNative?.notify?.schedule?.(list);}catch(e){return false;}}
-const remSub=k=>{const r=remOf(k);return r.days.length?"Collation à "+m2t(t2m(r.t)-75)+" · départ à "+m2t(t2m(r.t)-20):"Aucun jour de séance";};
+const remSub=k=>{const r=remOf(k);return r.days.length?"Collation à "+m2t(t2m(r.t)-75)+" · 1 h avant à "+m2t(t2m(r.t)-60)+" · départ à "+m2t(t2m(r.t)-20):"Aucun jour de séance";};
 function remindersCard(){
   return '<section class="card stack"><div class="row between"><span class="eyebrow">Rappels</span><svg aria-hidden="true" style="width:20px;height:20px;color:var(--mute)"><use href="#i-bell"/></svg></div><div>'+REM.map(([k,l,when])=>{const r=remOf(k);
     return '<div class="rem"><span><b>'+l+'</b><span'+(k==="seance"?' id="rS"':'')+'>'+esc(k==="seance"?remSub(k):when)+'</span></span><label class="sr" for="rt_'+k+'">'+(k==="seance"?"Heure de séance":"Heure du rappel "+l.toLowerCase())+'</label><input class="input" type="time" id="rt_'+k+'" data-rt="'+k+'" value="'+esc(r.t)+'"><button class="sw" role="switch" data-rm="'+k+'" aria-checked="'+r.on+'" aria-label="Rappel '+l.toLowerCase()+'"></button>'+
