@@ -5,7 +5,7 @@
 // current state, so retries, duplicates and out-of-order deliveries all converge.
 import { admin, json } from "../_shared/http.ts";
 import { Stripe, stripe } from "../_shared/stripe.ts";
-import { normStatus, periodEnd, pickSub } from "../_shared/pure.mjs";
+import { webhookRow } from "../_shared/pure.mjs";
 
 const crypto = Stripe.createSubtleCryptoProvider();
 const HANDLED = new Set([
@@ -40,19 +40,17 @@ Deno.serve(async (req) => {
       const c = await stripe.customers.retrieve(customer);
       clientId = "deleted" in c && c.deleted ? null : c.metadata?.user_id ?? null;
     }
-    if (!clientId) return json({ ignored: "unknown_customer" }); // not one of ours: 200 so Stripe stops retrying
-
-    const subs = await stripe.subscriptions.list({ customer, status: "all", limit: 20 });
-    const sub = pickSub(subs.data);
-    // comp is not in the payload: a webhook never touches the coach's grant.
-    const up = await db.from("subscriptions").upsert({
-      client_id: clientId,
-      stripe_customer_id: customer,
-      stripe_subscription_id: sub?.id ?? null,
-      status: sub ? normStatus(sub.status) : "none",
-      current_period_end: sub ? periodEnd(sub) : null,
-      updated_at: new Date().toISOString(),
-    }, { onConflict: "client_id" });
+    let hasProfile = false, subs: unknown[] = [];
+    if (clientId) {
+      const p = await db.from("profiles").select("id").eq("id", clientId).maybeSingle();
+      if (p.error) throw p.error;
+      hasProfile = !!p.data;
+    }
+    if (hasProfile) subs = (await stripe.subscriptions.list({ customer, status: "all", limit: 20 })).data;
+    const d = webhookRow({ clientId, hasProfile, customer, subs });
+    if (d.ignored) return json({ ignored: d.ignored });
+    const up = await db.from("subscriptions").upsert(d.row, { onConflict: "client_id" });
+    if (up.error?.code === "23503") return json({ ignored: "deleted_client" }); // profile deleted between the two queries
     if (up.error) throw up.error;
     return json({ ok: true });
   } catch (e) {

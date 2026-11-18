@@ -86,6 +86,9 @@ Faites tout d'abord en **mode test** (bouton « Test mode » en haut du tableau 
 3. **Développeurs > Clés API** : copiez la **clé secrète** (`sk_test_…` en test, `sk_live_…` en réel). Ne la mettez jamais dans l'appli.
 4. **Paramètres > Facturation > Portail client** : activez le portail, autorisez « Annuler l'abonnement » et
    « Mettre à jour le moyen de paiement ». C'est la page « Gérer mon abonnement » des clients.
+   **Paramètres > Billing > Revenue recovery** (Récupération des revenus) : pour « si toutes les tentatives échouent »
+   (« if all retries fail »), choisissez **Annuler l'abonnement** (« cancel the subscription »). Sinon un client en
+   échec de paiement (`past_due`) garderait l'accès indéfiniment.
 5. Codes promo (facultatif) : **Catalogue de produits > Coupons**. Le champ code promo s'affiche au paiement.
 6. Secrets Supabase :
    - `STRIPE_SECRET_KEY` = la clé secrète
@@ -111,6 +114,9 @@ Faites tout d'abord en **mode test** (bouton « Test mode » en haut du tableau 
 Accès offert : dans l'espace coach, « Accès offert » donne l'accès sans payer (colonne `comp`). Seul le coach du
 client peut le changer, et Stripe n'y touche jamais. Paiement refusé : le client garde l'accès pendant que Stripe
 retente le prélèvement (`past_due`), puis le perd si l'abonnement est annulé.
+
+**Annulez l'abonnement Stripe du client avant de supprimer son compte.** Sinon Stripe continue
+de le prélever ; le webhook ignore simplement ce client supprimé.
 
 ## 9. Calls (Cal.com)
 

@@ -2,7 +2,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createHmac, generateKeyPairSync, createVerify } from "node:crypto";
-import { allowedUrl, calBooking, clip, fcmGone, fcmJwt, normStatus, periodEnd, pickSub, verifyCal } from "../supabase/functions/_shared/pure.mjs";
+import { allowedUrl, calBooking, clip, fcmGone, fcmJwt, normStatus, periodEnd, pickSub, verifyCal, webhookRow } from "../supabase/functions/_shared/pure.mjs";
 
 test("Stripe status -> access status", () => {
   for (const s of ["active", "trialing", "past_due"]) assert.equal(normStatus(s), s);
@@ -18,6 +18,21 @@ test("pickSub prefers a live subscription over a newer dead one; periodEnd reads
   assert.equal(pickSub([]), null);
   assert.equal(periodEnd({ items: { data: [{ current_period_end: 1767225600 }] } }), "2026-01-01T00:00:00.000Z");
   assert.equal(periodEnd({}), null);
+});
+
+test("webhookRow: ignore unknown / deleted clients; row never carries comp", () => {
+  const now = new Date("2026-11-18T10:00:00Z");
+  const sub = { id: "sub_1", status: "active", created: 1, cancel_at_period_end: true, items: { data: [{ current_period_end: 1767225600 }] } };
+  assert.deepEqual(webhookRow({ clientId: null, hasProfile: false, customer: "cus_1", subs: [sub], now }), { ignored: "unknown_customer" });
+  assert.deepEqual(webhookRow({ clientId: "u1", hasProfile: false, customer: "cus_1", subs: [sub], now }), { ignored: "deleted_client" });
+  const { row } = webhookRow({ clientId: "u1", hasProfile: true, customer: "cus_1", subs: [sub], now });
+  assert.deepEqual(row, { client_id: "u1", stripe_customer_id: "cus_1", stripe_subscription_id: "sub_1", status: "active",
+    current_period_end: "2026-01-01T00:00:00.000Z", cancel_at_period_end: true, updated_at: "2026-11-18T10:00:00.000Z" });
+  assert.equal("comp" in row, false);
+  const none = webhookRow({ clientId: "u1", hasProfile: true, customer: "cus_1", subs: [], now }).row;
+  assert.equal(none.status, "none");
+  assert.equal(none.cancel_at_period_end, false);
+  assert.equal("comp" in none, false);
 });
 
 test("allowedUrl: only allowlisted origins, else first entry", () => {

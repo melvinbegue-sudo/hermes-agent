@@ -20,6 +20,24 @@ export function periodEnd(sub) {
   return t ? new Date(t * 1000).toISOString() : null;
 }
 
+// stripe-webhook decision: who the customer is + whether their profile still exists + their Stripe subs
+// -> {row} to upsert into subscriptions, or {ignored} (200, so Stripe stops retrying).
+// The row never carries comp: a webhook must not wipe the coach's free-access grant.
+export function webhookRow({ clientId, hasProfile, customer, subs, now = new Date() }) {
+  if (!clientId) return { ignored: "unknown_customer" }; // not one of ours
+  if (!hasProfile) return { ignored: "deleted_client" }; // account deleted while Stripe still bills: FK would fail forever
+  const sub = pickSub(subs);
+  return { row: {
+    client_id: clientId,
+    stripe_customer_id: customer,
+    stripe_subscription_id: sub?.id ?? null,
+    status: sub ? normStatus(sub.status) : "none",
+    current_period_end: sub ? periodEnd(sub) : null,
+    cancel_at_period_end: !!(sub?.cancel_at_period_end || sub?.cancel_at), // newer API versions may set cancel_at instead
+    updated_at: now.toISOString(),
+  } };
+}
+
 // Redirect URL from the app, accepted only if its origin is in the allowlist; else the first allowed URL.
 export function allowedUrl(url, allow) {
   const list = String(allow || "").split(",").map((s) => s.trim()).filter(Boolean);
