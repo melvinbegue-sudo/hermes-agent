@@ -93,6 +93,46 @@ décommentez la ligne prévue dans `AndroidManifest.xml`. Les push arrivent dans
 `GoogleService-Info.plist` et `google-services.json` ne sont pas des mots de passe, mais ils
 sont propres à votre projet Firebase : ne les copiez pas d'un autre projet.
 
+## Widget iPhone « Anneaux du jour »
+
+Widget d'écran d'accueil (petit et moyen) : trois anneaux calories / protéines / pas, valeurs et
+objectifs du jour ; « — » tant que l'app n'a pas été ouverte aujourd'hui. Un toucher ouvre l'app.
+La cible **MBWidget** est **déjà dans le projet Xcode** (dossier `ios/App/MBWidget/`), et l'app
+lui envoie les chiffres via le petit plugin `App/MBWidgetPlugin.swift`.
+
+Les deux cibles partagent un **App Group** `group.fr.mbnutrition.app` (les fichiers
+`.entitlements` le déclarent déjà). Dans Xcode, une fois :
+
+1. `cd ios/App && pod install` puis `npx cap open ios`.
+2. Cible **App** → **Signing & Capabilities** → **Team**. Si **App Groups** n'apparaît pas :
+   **+ Capability → App Groups**, puis cochez `group.fr.mbnutrition.app` (le **+** sous la liste
+   le crée chez Apple s'il n'existe pas).
+3. Cible **MBWidget** → même chose : **Team** (le même), **App Groups** coché
+   `group.fr.mbnutrition.app`. Identifiant : `fr.mbnutrition.app.MBWidget`.
+4. ▶ sur l'iPhone, ouvrez l'app une fois, puis appui long sur l'écran d'accueil → **+** →
+   **MB NUTRITION** → « Anneaux du jour ».
+
+Si Xcode refuse la cible (message sur « MBWidget ») : supprimez-la (cible **MBWidget** → touche
+⌫), puis **File → New → Target → Widget Extension**, nom `MBWidget`, décochez « Include Live
+Activity » et « Include Configuration App Intent », **Activate**. Remplacez les fichiers créés par
+ceux de `ios/App/MBWidget/` (garder `MBWidget.swift`, `Info.plist`, `MBWidget.entitlements`,
+supprimer les autres `.swift` générés), mettez **Minimum Deployments** à iOS 15.0 et refaites
+l'étape 3.
+
+## Partage de fichiers (PDF)
+
+Dans l'app, « Exporter en PDF » ouvre la **feuille de partage** iPhone / Android (Enregistrer dans
+Fichiers, Mail, WhatsApp…) via `@capacitor/filesystem` et `@capacitor/share`. Rien à régler.
+Dans un navigateur, le fichier est simplement téléchargé.
+
+## Cycle menstruel
+
+Le plugin santé utilisé (`@capgo/capacitor-health`, dernière version 8.13) **ne lit pas encore le
+flux menstruel** d'Apple Santé ni de Health Connect. Le suivi du cycle se fait donc par **saisie
+manuelle** dans l'app ; aucune autorisation santé supplémentaire n'est demandée. Quand le plugin
+l'ajoutera, il faudra : l'autorisation `READ_MENSTRUATION` (Android), une phrase sur le cycle dans
+le texte d'autorisation Santé (iPhone) et le formulaire Health Connect à mettre à jour.
+
 ## Paiement de l'abonnement et règles Apple / Google
 
 L'abonnement est payé sur **Stripe**, hors de l'app (page ouverte dans le navigateur).
@@ -119,4 +159,4 @@ du « contenu numérique ».
   vides = accès refusé ou pas de données. Réglages → Santé → Accès aux données → MB NUTRITION.
 - Dans un navigateur (ou l'aperçu claude.ai), les fonctions santé sont simplement absentes.
 - Fichiers techniques : `capacitor.config.json`, `www/health.js` (santé), `www/native.js`
-  (scanner, rappels, push, liens), dossiers `ios/` et `android/`.
+  (scanner, rappels, push, liens, partage, widget), dossiers `ios/` et `android/`.
