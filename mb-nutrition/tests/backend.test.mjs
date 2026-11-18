@@ -1,0 +1,73 @@
+// node --test mb-nutrition/tests/backend.test.mjs — pure helpers used by the Edge Functions (supabase/functions/_shared/pure.mjs).
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { createHmac, generateKeyPairSync, createVerify } from "node:crypto";
+import { allowedUrl, calBooking, clip, fcmGone, fcmJwt, normStatus, periodEnd, pickSub, verifyCal } from "../supabase/functions/_shared/pure.mjs";
+
+test("Stripe status -> access status", () => {
+  for (const s of ["active", "trialing", "past_due"]) assert.equal(normStatus(s), s);
+  for (const s of ["canceled", "unpaid", "incomplete_expired", "paused"]) assert.equal(normStatus(s), "canceled");
+  assert.equal(normStatus("incomplete"), "none");
+  assert.equal(normStatus(undefined), "none");
+});
+
+test("pickSub prefers a live subscription over a newer dead one; periodEnd reads items", () => {
+  const live = { id: "a", status: "active", created: 1 }, dead = { id: "b", status: "canceled", created: 2 };
+  assert.equal(pickSub([dead, live]).id, "a");
+  assert.equal(pickSub([{ id: "c", status: "canceled", created: 1 }, dead]).id, "b");
+  assert.equal(pickSub([]), null);
+  assert.equal(periodEnd({ items: { data: [{ current_period_end: 1767225600 }] } }), "2026-01-01T00:00:00.000Z");
+  assert.equal(periodEnd({}), null);
+});
+
+test("allowedUrl: only allowlisted origins, else first entry", () => {
+  const allow = "https://app.mb.fr/, https://mb.fr";
+  assert.equal(allowedUrl("https://mb.fr/merci?x=1", allow), "https://mb.fr/merci?x=1");
+  assert.equal(allowedUrl("https://evil.fr/mb.fr", allow), "https://app.mb.fr/");
+  assert.equal(allowedUrl("javascript:alert(1)", allow), "https://app.mb.fr/");
+  assert.equal(allowedUrl(undefined, allow), "https://app.mb.fr/");
+  assert.equal(allowedUrl("https://mb.fr", ""), null);
+});
+
+test("Cal.com signature", async () => {
+  const raw = JSON.stringify({ triggerEvent: "PING" }), sig = createHmac("sha256", "s3cret").update(raw).digest("hex");
+  assert.equal(await verifyCal(raw, sig, "s3cret"), true);
+  assert.equal(await verifyCal(raw + " ", sig, "s3cret"), false);
+  assert.equal(await verifyCal(raw, sig, "other"), false);
+  assert.equal(await verifyCal(raw, null, "s3cret"), false);
+  assert.equal(await verifyCal(raw, sig, ""), false);
+});
+
+test("Cal.com payload -> booking row", () => {
+  const p = { uid: "new", startTime: "2026-12-01T09:00:00Z", endTime: "2026-12-01T09:30:00Z",
+    attendees: [{ email: "Client@Mail.FR" }], location: "integrations:daily", metadata: { videoCallUrl: "https://meet.example/x" } };
+  const c = calBooking({ triggerEvent: "BOOKING_CREATED", payload: p });
+  assert.deepEqual(c.row, { cal_uid: "new", email: "client@mail.fr", starts_at: "2026-12-01T09:00:00.000Z",
+    ends_at: "2026-12-01T09:30:00.000Z", status: "booked", meeting_url: "https://meet.example/x" });
+  assert.equal(c.replaces, null);
+  const r = calBooking({ triggerEvent: "BOOKING_RESCHEDULED", payload: { ...p, rescheduleUid: "old", metadata: {}, location: "https://zoom.us/j/1" } });
+  assert.equal(r.replaces, "old");
+  assert.equal(r.row.meeting_url, "https://zoom.us/j/1");
+  assert.equal(calBooking({ triggerEvent: "BOOKING_CANCELLED", payload: p }).row.status, "cancelled");
+  assert.equal(calBooking({ triggerEvent: "PING", payload: {} }), null);
+  assert.throws(() => calBooking({ triggerEvent: "BOOKING_CREATED", payload: { uid: "x", startTime: "nope" } }));
+});
+
+test("FCM: RS256 JWT verifies with the service-account public key; dead-token detection", async () => {
+  const { privateKey, publicKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
+  const sa = { client_email: "push@p.iam.gserviceaccount.com", private_key: privateKey.export({ type: "pkcs8", format: "pem" }) };
+  const jwt = await fcmJwt(sa, 1000);
+  const [h, c, s] = jwt.split(".");
+  const dec = (x) => JSON.parse(Buffer.from(x, "base64url").toString());
+  assert.deepEqual(dec(h), { alg: "RS256", typ: "JWT" });
+  assert.deepEqual(dec(c), { iss: sa.client_email, scope: "https://www.googleapis.com/auth/firebase.messaging",
+    aud: "https://oauth2.googleapis.com/token", iat: 1000, exp: 4600 });
+  assert.equal(createVerify("RSA-SHA256").update(h + "." + c).verify(publicKey, Buffer.from(s, "base64url")), true);
+
+  assert.equal(fcmGone({ error: { status: "NOT_FOUND", details: [{ errorCode: "UNREGISTERED" }] } }), true);
+  assert.equal(fcmGone({ error: { status: "INVALID_ARGUMENT", message: "The registration token is not a valid FCM registration token" } }), true);
+  assert.equal(fcmGone({ error: { status: "INVALID_ARGUMENT", message: "Invalid JSON payload" } }), false);
+  assert.equal(fcmGone({ error: { status: "NOT_FOUND", message: "Requested entity was not found." } }), false);
+  assert.equal(fcmGone(null), false);
+  assert.equal(clip("  ab  ", 1), "a");
+});
