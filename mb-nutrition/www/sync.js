@@ -47,6 +47,22 @@
     return btoa(s);
   }
 
+  // subscriptions row -> billing.status() shape (ARCHITECTURE.md v2). past_due counts: Stripe is still retrying.
+  function bill(r) {
+    if (!r) return { active: false, status: "none", periodEnd: null };
+    var st = r.comp ? "comp" : r.status || "none";
+    return { active: ["active", "trialing", "past_due", "comp"].indexOf(st) >= 0, status: st, periodEnd: r.current_period_end || null };
+  }
+  var call = function (b) {
+    return { id: b.id, clientId: b.client_id, email: b.email, start: b.starts_at, end: b.ends_at, url: b.meeting_url || null };
+  };
+  var upcoming = function () {
+    return sb.from("bookings").select("*").eq("status", "booked").gte("ends_at", new Date().toISOString()).order("starts_at");
+  };
+  // Edge Function call -> data (non-2xx -> throws). Return URL = current page when it is a web page.
+  var here = function () { var h = (window.location && window.location.href) || ""; return /^https?:/.test(h) ? h : undefined; };
+  async function fn(name, body) { return ok(await sb.functions.invoke(name, { body: body || {} })); }
+
   var session = safe(async function () {
     var s = ok(await sb.auth.getSession()).session;
     if (!s) return null;
@@ -144,14 +160,63 @@
       return ok(res);
     }),
 
+    billing: {
+      status: safe(async function () {
+        var id = await uid();
+        await session(); // fills role
+        if (role === "coach") return { active: true, status: "comp", periodEnd: null };
+        return bill(ok(await sb.from("subscriptions").select("*").eq("client_id", id).maybeSingle()));
+      }),
+      checkout: safe(async function () { return (await fn("create-checkout", { successUrl: here(), cancelUrl: here() })).url; }),
+      portal: safe(async function () { return (await fn("billing-portal", { returnUrl: here() })).url; }),
+    },
+
+    calls: {
+      next: safe(async function () {
+        var b = ok(await upcoming().eq("client_id", await uid()).limit(1))[0];
+        return b ? { start: b.starts_at, end: b.ends_at, url: b.meeting_url || null } : null;
+      }),
+      // RLS scopes it: a client sees own calls, the coach all of his clients' (+ unmatched bookings).
+      list: safe(async function (clientId) {
+        var q = upcoming().limit(200);
+        return ok(await (clientId ? q.eq("client_id", clientId) : q)).map(call);
+      }),
+    },
+
+    push: {
+      register: safe(async function (token, platform) {
+        if (!token || ["ios", "android"].indexOf(platform) < 0) return false;
+        return ok(await sb.rpc("register_push", { tok: String(token), plat: platform })) === true;
+      }, false),
+    },
+
     coach: {
       clients: safe(async function () {
-        var rows = ok(await sb.from("profiles").select("*").eq("role", "client").order("prenom"));
-        var notes = ok(await sb.from("coach_notes").select("*"));
-        return rows.map(function (r) {
-          var n = notes.find(function (x) { return x.client_id === r.id; }) || {};
-          return Object.assign({}, r, { notes: n.notes || "", data: n.data || {} });
+        var r = await Promise.all([
+          sb.from("profiles").select("*").eq("role", "client").order("prenom"),
+          sb.from("coach_notes").select("*"),
+          sb.from("subscriptions").select("*"),
+          upcoming().not("client_id", "is", null),
+        ]);
+        var rows = ok(r[0]), notes = ok(r[1]);
+        // Billing/calls tables may be missing (migration 0002 not run yet): the list must still load.
+        var subs = r[2].error ? null : r[2].data, books = r[3].error ? null : r[3].data;
+        return rows.map(function (row) {
+          var n = notes.find(function (x) { return x.client_id === row.id; }) || {};
+          var b = subs && bill(subs.find(function (x) { return x.client_id === row.id; }));
+          var c = books && books.find(function (x) { return x.client_id === row.id; });
+          return Object.assign({}, row, { notes: n.notes || "", data: n.data || {},
+            billing: b ? { status: b.status, periodEnd: b.periodEnd } : null,
+            nextCall: c ? { start: c.starts_at, end: c.ends_at, url: c.meeting_url || null } : null });
         });
+      }),
+      grantAccess: safe(async function (clientId, on) {
+        return ok(await sb.rpc("set_comp", { client: clientId, on_: !!on })) === true;
+      }, false),
+      // -> number of devices reached, or null.
+      push: safe(async function (msg) {
+        msg = msg || {};
+        return (await fn("send-push", { to: msg.to, title: msg.title, body: msg.body })).sent;
       }),
       client: safe(async function (id) {
         var from = iso(new Date(Date.now() - 27 * 864e5));
