@@ -236,7 +236,7 @@ main{display:grid;gap:14px}
 /* Tendances */
 .kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
 .kpi{padding:13px;border-radius:16px;background:var(--card);box-shadow:var(--shadow)}
-.kpi .n{font-size:1.5rem}.kpi span{display:block;font-size:.6875rem;color:var(--mute);margin-top:5px;line-height:1.3;font-weight:600}
+.kpi .n{font-size:1.5rem}.kpi span:not(.n){display:block;font-size:.6875rem;color:var(--mute);margin-top:5px;line-height:1.3;font-weight:600}
 .metric{display:grid;gap:10px}
 .metric .head{display:flex;align-items:flex-end;justify-content:space-between;gap:12px}
 .metric .head .n{font-size:1.75rem}.metric .head .n small{font-size:.8125rem;color:var(--mute);font-weight:600;letter-spacing:0}

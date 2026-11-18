@@ -46,9 +46,14 @@ function seedExample(s){ /* premier lancement : un état réaliste, marqué « e
   s.checkins=[{date:addDays(t,-14),energie:3,sommeil:3,faim:3,respect:2,ex:true},{date:addDays(t,-7),energie:4,sommeil:3,faim:2,respect:3,ex:true}];
   s.trainings=[{id:"tx1",date:addDays(t,-2),sport:"Musculation",min:60,intensite:2,ex:true},{id:"tx2",date:addDays(t,-4),sport:"CrossFit",min:45,intensite:3,ex:true}];
   s.weights=[{date:addDays(t,-21),kg:76.4,ex:true},{date:addDays(t,-14),kg:76.0,ex:true},{date:addDays(t,-7),kg:75.6,ex:true}];
-  /* Santé : fréquence cardiaque, sommeil, énergie active des 7 derniers jours (courbe réaliste : nuit basse, séance l'après-midi) */
-  for(let k=0;k<7;k++){const day=addDays(t,-k),rest=57+(k*3)%5,pts=[];
-    for(let m=0;m<(k?1440:Math.max(120,new Date().getHours()*60+new Date().getMinutes()));m+=15){const h=m/60,act=h>=7&&h<23?14+8*Math.sin(h/2.3):0,sport=h>=17.5&&h<18.5?55:0;pts.push([m,Math.round(rest+act+sport+3*Math.sin(m/37+k))]);}
+  /* Santé : fréquence cardiaque, sommeil, énergie active des 7 derniers jours (nuit 50-58, journée 65-95, séance au moment du profil un jour sur deux) */
+  const now=new Date(),nowM=now.getHours()*60+now.getMinutes(),tS={matin:7,midi:12.5,soir:18}[s.profile.moment]||18;
+  for(let k=0;k<7;k++){const day=addDays(t,-k),rest=52+(k*3)%5,pts=[];let r=k*977+13;const rnd=()=>(r=(r*16807)%2147483647)/2147483647;
+    for(let m=0;m<=(k?1425:Math.max(30,nowM));m+=15){const h=m/60;let b;
+      if(h<6.5||h>=23)b=rest-2+rnd()*6;
+      else{b=68+rnd()*12;if(h<7.5)b=rest+(h-6.5)*14+rnd()*6;if((h>=8&&h<9)||(h>=12.5&&h<13.2)||(h>=17.3&&h<17.8))b+=10+rnd()*8;if(h>=21.5)b-=8;}
+      const e=h-tS;if(k%2===0&&e>=0&&e<1)b=e<.15?100+e*200:138+rnd()*15;else if(k%2===0&&e>=1&&e<2)b=Math.max(b,72+60*Math.exp(-(e-1)*4));
+      pts.push([m,Math.round(b)]);}
     const v=pts.map(p=>p[1]);s.hr[day]={avg:Math.round(v.reduce((a,b)=>a+b,0)/v.length),min:Math.min(...v),max:Math.max(...v),resting:rest,hrv:44+(k*7)%13,pts};
     s.sleep[day]=[442,401,465,388,476,430,452][k];s.active[day]=[310,520,460,610,380,540,290][k];}
   s.measures=[{date:addDays(t,-21),waist:86.5,hips:98,chest:101,arm:34,thigh:57,ex:true},{date:addDays(t,-10),waist:85.5,hips:97.5,chest:101,arm:34.5,thigh:56.5,ex:true},{date:addDays(t,-2),waist:84.5,hips:97,chest:101.5,arm:35,thigh:56.5,ex:true}];
