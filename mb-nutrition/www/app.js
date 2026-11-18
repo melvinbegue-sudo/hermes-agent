@@ -849,6 +849,6 @@ async function syncClientView(v){v.innerHTML='<button class="lnk" id="bk" style=
 S=load();save();applyTheme();renderTabs();addEventListener("hashchange",route);
 const realign=()=>{const a=$('#tabs a[aria-current="page"]');a&&slide($("#tabs .ind"),a,$("#tabs"),false);$$(".dates,.segs").forEach(p=>slide($(".sel",p),$('[aria-pressed="true"]',p),p,false));};
 addEventListener("resize",realign);route();document.fonts?.ready.then(realign);initCaps();
-Promise.resolve(window.MBHealth?.available?.()).then(ok=>{hOK=!!ok;if(!hOK)return;healthPull();if(cur()==="profil"&&!$(".sheet"))rerender();}).catch(()=>{});if(syncOn())MBSync.session().then(s=>{if(s){acct=s;onLogin(false);}});try{window.MBNative?.push?.onTap?.(onPushTap);}catch(e){}document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")onResume();});
+Promise.resolve(window.MBHealth?.available?.()).then(ok=>{hOK=!!ok;if(!hOK)return;healthPull();if(cur()==="profil"&&!$(".sheet"))rerender();}).catch(()=>{});if(syncOn())MBSync.session().then(s=>{if(s){acct=s;onLogin(false);}});try{window.MBNative?.push?.onTap?.(onPushTap);window.MBNative?.notify?.onTap?.(onPushTap);}catch(e){}document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")onResume();});
 })();
 
