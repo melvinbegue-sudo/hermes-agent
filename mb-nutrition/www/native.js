@@ -105,7 +105,7 @@
         } catch (e) { return false; }
       },
 
-      // list = [{id:int, title, body, hour, minute}] : rappels quotidiens, remplace tous les précédents.
+      // list = [{id:int, title, body, hour, minute, weekday?}] : quotidiens, ou hebdo si weekday (1 = dimanche … 7 = samedi). Remplace tous les précédents.
       schedule: async function (list) {
         try {
           var ln = P('LocalNotifications');
@@ -117,7 +117,7 @@
             return n && Number.isInteger(n.id) && n.hour >= 0 && n.hour < 24 && n.minute >= 0 && n.minute < 60;
           }).map(function (n) {
             return { id: n.id, title: String(n.title || 'MB NUTRITION'), body: String(n.body || ''),
-              schedule: { on: { hour: n.hour, minute: n.minute }, allowWhileIdle: true } };
+              schedule: { on: n.weekday >= 1 && n.weekday <= 7 ? { weekday: n.weekday, hour: n.hour, minute: n.minute } : { hour: n.hour, minute: n.minute }, allowWhileIdle: true } };
           });
           if (items.length) await ln.schedule({ notifications: items });
           return true;
