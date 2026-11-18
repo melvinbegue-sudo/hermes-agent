@@ -5,7 +5,7 @@
 // current state, so retries, duplicates and out-of-order deliveries all converge.
 import { admin, json } from "../_shared/http.ts";
 import { Stripe, stripe } from "../_shared/stripe.ts";
-import { normStatus, periodEnd, pickSub } from "../_shared/pure.js";
+import { normStatus, periodEnd, pickSub } from "../_shared/pure.mjs";
 
 const crypto = Stripe.createSubtleCryptoProvider();
 const HANDLED = new Set([

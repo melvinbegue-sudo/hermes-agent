@@ -1,7 +1,7 @@
 // send-push — le coach envoie une notification à un client ou à tous -> {sent}. FCM HTTP v1 (Android + iOS via APNs).
 // Secret: FCM_SERVICE_ACCOUNT (the whole Firebase service-account JSON). Body: {to: clientId | "all", title, body}.
 import { admin, caller, CORS, json } from "../_shared/http.ts";
-import { clip, fcmGone, fcmJwt } from "../_shared/pure.js";
+import { clip, fcmGone, fcmJwt } from "../_shared/pure.mjs";
 
 let sa: { project_id: string; client_email: string; private_key: string; token_uri?: string } | null = null;
 let cached = { token: "", exp: 0 }; // OAuth2 access token, reused while the function instance is warm

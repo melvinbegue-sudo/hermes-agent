@@ -1,8 +1,8 @@
 // cal-webhook — Cal.com -> table bookings. Called by Cal.com, not the app: deploy with --no-verify-jwt.
 // Secret: CAL_WEBHOOK_SECRET (same value as the "Secret" field of the Cal.com webhook).
-// Events: BOOKING_CREATED, BOOKING_RESCHEDULED, BOOKING_CANCELLED. Payload shape assumed in _shared/pure.js calBooking().
+// Events: BOOKING_CREATED, BOOKING_RESCHEDULED, BOOKING_CANCELLED. Payload shape assumed in _shared/pure.mjs calBooking().
 import { admin, json } from "../_shared/http.ts";
-import { calBooking, verifyCal } from "../_shared/pure.js";
+import { calBooking, verifyCal } from "../_shared/pure.mjs";
 
 Deno.serve(async (req) => {
   if (req.method !== "POST") return json({ error: "method" }, 405);

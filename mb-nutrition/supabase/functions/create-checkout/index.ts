@@ -2,7 +2,7 @@
 // Secrets: STRIPE_SECRET_KEY, STRIPE_PRICE_ID, APP_URLS (comma-separated allowed return URLs; first = default).
 import { admin, caller, CORS, json } from "../_shared/http.ts";
 import { stripe } from "../_shared/stripe.ts";
-import { allowedUrl } from "../_shared/pure.js";
+import { allowedUrl } from "../_shared/pure.mjs";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
