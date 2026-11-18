@@ -68,7 +68,8 @@ STRIPE_WEBHOOK_SECRET, STRIPE_PRICE_ID, CAL_WEBHOOK_SECRET, FCM_SERVICE_ACCOUNT 
 Non-secret app config in www/config.js: `calUrl` (e.g. "https://cal.com/melvin-begue/call").
 
 ### `MBSync` additions
-- `billing.status()` -> `{active:boolean, status:"active"|"trialing"|"past_due"|"canceled"|"none"|"comp", periodEnd:iso|null}` or null.
+- `billing.status()` -> `{active:boolean, status:"active"|"trialing"|"past_due"|"canceled"|"none"|"comp", periodEnd:iso|null, cancelAt:boolean}` or null.
+  `cancelAt` is true when the client cancelled: access runs until periodEnd, no renewal.
   `active` is true for active/trialing/comp (and past_due within Stripe's retry window).
 - `billing.checkout()` -> Stripe Checkout URL (string) or null. Edge Function `create-checkout`.
 - `billing.portal()` -> Stripe customer-portal URL or null. Edge Function `billing-portal`.
@@ -77,7 +78,7 @@ Non-secret app config in www/config.js: `calUrl` (e.g. "https://cal.com/melvin-b
 - `push.register(token, platform:"ios"|"android")` -> boolean (stores the device token).
 - Coach only: `coach.grantAccess(clientId, on:boolean)`, `coach.push({to:clientId|"all", title, body})` -> number sent or null
   (Edge Function `send-push`, FCM HTTP v1 for Android + iOS).
-- `coach.clients()` rows gain `billing: {status, periodEnd}` and `nextCall`.
+- `coach.clients()` rows gain `billing: {status, periodEnd, cancelAt}` and `nextCall`.
 
 ### `MBNative` additions
 - `openUrl(url)` — opens in the system browser / in-app browser (@capacitor/browser); web: window.open / location.

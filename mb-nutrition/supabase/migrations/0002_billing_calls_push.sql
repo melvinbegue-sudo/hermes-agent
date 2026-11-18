@@ -10,6 +10,7 @@ create table public.subscriptions (
   -- normalized by stripe-webhook: active | trialing | past_due | canceled | none
   status                 text not null default 'none' check (status in ('active','trialing','past_due','canceled','none')),
   current_period_end     timestamptz,
+  cancel_at_period_end   boolean not null default false,  -- client cancelled: access runs until current_period_end
   comp                   boolean not null default false,  -- free access granted by the coach (set_comp only)
   updated_at             timestamptz not null default now()
 );

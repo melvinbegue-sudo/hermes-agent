@@ -34,7 +34,7 @@ const short=s=>parse(s).toLocaleDateString("fr-FR",{day:"numeric",month:"short"}
 const KEY="mbn.app.v3";
 const PROFILE0={stepsGoal:8000,prenom:"",sexe:"h",age:30,taille:175,poids:75,objectif:"forme",seances:3,intensite:2,sport:"Musculation",moment:"soir",regime:"omni",allergies:[],salle:""};
 const BLANK={mode:null,example:true,profile:structuredClone(PROFILE0),code:null,clientId:null,plan:null,log:{},water:{},shop:{},checkins:[],trainings:[],weights:[],steps:{},lastExport:null,
-  health:{on:false},hr:{},sleep:{},active:{},fasts:[],foods:{},measures:[],progress:[],theme:"auto",msgSeen:null,billing:null, /* {status,active,periodEnd,at} dernier état Stripe connu */
+  health:{on:false},hr:{},sleep:{},active:{},fasts:[],foods:{},measures:[],progress:[],theme:"auto",msgSeen:null,billing:null, /* {status,active,periodEnd,cancelAt,at} dernier état Stripe connu */
   shopAsk:{}, /* {iso: true|false} réponse à « Courses faites ? » */
   reminders:{seance:{on:false},courses:{on:false},repas:{on:false,t:"12:00"},eau:{on:false,t:"10:30"},pesee:{on:false,t:"07:30"},point:{on:false,t:"18:00"}}};
 let S;
@@ -750,7 +750,7 @@ async function onLogin(fresh){if(!acct)return;subscribeMsgs();
   if(!S.mode||S.mode==="demo"){S.mode="client";save();}
   if(fresh)go(S.example?"bilan":"journal");else if(!$(".sheet"))rerender();
   pullPlan();pushSoon();checkUnread();pullBilling();registerPush();}
-async function signOut(){await MBSync.signOut();acct=null;S.billing=null;nCall=null;save();unsub&&unsub();unsub=null;unread=false;if(syncCoach){syncCoach=coachOn=false;sClients=null;sOpen=null;}toast("Déconnecté de votre compte");route();}
+async function signOut(){if(pushTok){const t=pushTok;pushTok=null;try{await MBSync.push?.unregister?.(t);}catch(e){}}await MBSync.signOut();acct=null;S.billing=null;nCall=null;save();unsub&&unsub();unsub=null;unread=false;if(syncCoach){syncCoach=coachOn=false;sClients=null;sOpen=null;}toast("Déconnecté de votre compte");route();}
 /* Envoi en arrière-plan après chaque enregistrement (2 s de calme), seulement ce qui a changé */
 function pushSoon(){if(!online()||acct.role==="coach"||S.example)return;clearTimeout(pT);pT=setTimeout(pushNow,2000);}
 const dayPayload=d=>{const h=S.hr[d];return{log:S.log[d]||[],water:S.water[d]||0,steps:S.steps[d]||0,health:{hr:h?{avg:h.avg,min:h.min,max:h.max,resting:h.resting,hrv:h.hrv}:null,sleepMin:S.sleep[d]||null,activeKcal:S.active[d]||null},fasting:S.fasts.filter(f=>iso(new Date(f.start))===d)};};
@@ -785,7 +785,7 @@ const PRICE=87,billOn=()=>online()&&acct.role!=="coach";
 const locked=()=>billOn()&&S.billing?.active===false;
 let nCall=null;
 async function pullBilling(){if(!billOn())return;let b=null;try{b=await MBSync.billing?.status?.();}catch(e){}
-  if(b&&typeof b==="object"){const nb={status:String(b.status||"none"),active:!!b.active,periodEnd:b.periodEnd||null},o=S.billing,chg=!o||o.status!==nb.status||o.active!==nb.active||o.periodEnd!==nb.periodEnd;S.billing=Object.assign(nb,{at:Date.now()});save();if(chg&&!$(".sheet"))rerender();}
+  if(b&&typeof b==="object"){const nb={status:String(b.status||"none"),active:!!b.active,periodEnd:b.periodEnd||null,cancelAt:!!b.cancelAt},o=S.billing,chg=!o||o.status!==nb.status||o.active!==nb.active||o.periodEnd!==nb.periodEnd||o.cancelAt!==nb.cancelAt;S.billing=Object.assign(nb,{at:Date.now()});save();if(chg&&!$(".sheet"))rerender();}
   pullCall();}
 async function pullCall(){if(!billOn()||locked())return;let c=null;try{c=await MBSync.calls?.next?.();}catch(e){return;}c=c&&c.start?c:null;
   if(JSON.stringify(c)!==JSON.stringify(nCall)){nCall=c;if(cur()==="journal"&&!$(".sheet"))rerender();}}
@@ -807,7 +807,7 @@ function subCard(){if(!billOn())return '';const b=S.billing;
   if(!b)return '<section class="card stack"><span class="eyebrow">Mon abonnement</span><p class="small mute">Vérification de l\'abonnement…</p></section>';
   const[l,c]=billOf(b.status),end=frDate(b.periodEnd);
   return '<section class="card stack"><div class="row between"><span class="eyebrow">Mon abonnement</span><span class="pill '+c+'"><i></i>'+l+'</span></div>'+
-   '<p class="small mute">'+(b.status==="comp"?"Melvin vous offre l'accès complet : plan, messages et calls.":b.active?PRICE+" € / mois"+(end?(b.status==="canceled"?" · accès jusqu'au ":" · prochain renouvellement le ")+esc(end):""):"Plan, messages et calls avec Melvin sont réservés aux abonnés.")+'</p>'+
+   '<p class="small mute">'+(b.status==="comp"?"Melvin vous offre l'accès complet : plan, messages et calls.":b.active?PRICE+" € / mois"+(end?(b.cancelAt?" · accès jusqu'au ":" · prochain renouvellement le ")+esc(end):""):"Plan, messages et calls avec Melvin sont réservés aux abonnés.")+'</p>'+
    (b.status==="comp"?'':b.status==="past_due"?'<button class="btn block" data-portal>Mettre à jour mon paiement</button>':b.active?'<button class="btn line block" data-portal>Gérer mon abonnement</button>':'<button class="btn gold block" data-checkout>M\'abonner · '+PRICE+' € / mois</button>')+'</section>';}
 const calLink=()=>{const u=window.MB_CONFIG?.calUrl||"";return u+(u.includes("?")?"&":"?")+"name="+encodeURIComponent(S.profile.prenom||"")+"&email="+encodeURIComponent(acct?.email||"");};
 /* shortcut: « Rejoindre » est calculé au rendu (10 min avant) ; il apparaît au prochain affichage ou retour dans l'appli */
@@ -817,7 +817,8 @@ function callCard(){if(!billOn()||selDate!==todayIso())return '';const cal=!!win
   if(!c&&!cal)return '';
   return '<section class="card nudge">'+ico+'<span><b>'+(c?"Mon prochain call":"Un call avec Melvin")+'</b><span class="sub">'+(c?esc(callWhen(c.start)):"Calls illimités avec votre abonnement")+'</span></span><div class="row">'+(join?'<button class="btn sm gold" data-join>Rejoindre</button>':'')+(cal?'<button class="btn sm '+(join?"line":"soft")+'" data-book>'+(join?"Réserver":"Réserver un call avec Melvin")+'</button>':'')+'</div></section>';}
 /* Push : jeton envoyé au serveur après connexion (appli native) */
-async function registerPush(){if(!native()||!billOn())return;try{const r=await MBNative.push?.register?.();if(r&&r.token)await MBSync.push?.register?.(r.token,r.platform);}catch(e){}}
+let pushTok=null; /* jeton de cet appareil, effacé du serveur à la déconnexion */
+async function registerPush(){if(!native()||!billOn())return;try{const r=await MBNative.push?.register?.();if(r&&r.token){pushTok=r.token;await MBSync.push?.register?.(r.token,r.platform);}}catch(e){}}
 function onPushTap(d){const x=(d&&d.data)||{};if(x.view==="chat"){if(billOn())chatSheet();else go("journal");}else if(ALL.includes(x.view))go(x.view);}
 /* Espace coach en ligne : fiches lues sur le serveur au lieu de la base de l'artifact */
 let sClients=null,sOpen=null;
@@ -853,7 +854,7 @@ async function syncClientView(v){v.innerHTML='<button class="lnk" id="bk" style=
     M=(c.measures||[]).slice(-1)[0],G=(c.photos||[]).filter(x=>x&&x.kind==="progress"&&x.path).slice(-6).reverse(),C=(c.checkins||[]).map(x=>Object.assign({date:x.date},x.data||{})),d7=D.slice(-7),ad=d7.length?Math.round(d7.reduce((a,x)=>a+x[1]/x[3],0)/d7.length*100):null;
   v.innerHTML='<button class="lnk" id="bk" style="justify-self:start">← Tous les clients</button><section class="card stack"><div class="row between"><div class="row"><span class="avatar">'+esc(c.prenom[0].toUpperCase())+'</span><div><h1 style="font-size:1.5rem">'+esc(c.prenom)+'</h1><p class="small mute">'+esc(c.email||"")+' · '+esc(OBJECTIFS[c.objectif]?.label||"")+'</p></div></div>'+billPill(Object.assign({},c,{billing:bl}))+'</div><div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn sm" data-msg><svg aria-hidden="true"><use href="#i-chat"/></svg>Messages</button><button class="btn sm line" data-pl>Modifier le plan</button>'+(window.MBSync?.coach?.push?'<button class="btn sm line" data-np><svg aria-hidden="true"><use href="#i-bell"/></svg>Notification</button>':'')+'</div>'+
    (nc?'<p class="small mute">Prochain call : <b style="color:var(--ink)">'+esc(callWhen(nc))+'</b></p>':'')+
-   (bl||canG?'<div><div class="rem"><span><b>'+(bl?"Abonnement : "+billOf(bs)[0]:"Abonnement")+'</b><span>'+(bs==="comp"?"Accès offert par vous":bEnd&&bs!=="none"?(bs==="canceled"?"Accès jusqu'au ":"Renouvellement le ")+esc(bEnd):"Plan, messages et calls sans abonnement si offert")+'</span></span><span></span>'+(canG?'<button class="sw" role="switch" id="gA" aria-checked="'+(bs==="comp")+'" aria-label="Offrir l\'accès"></button>':'')+'</div><div id="gC"></div></div>':'')+'</section>'+
+   (bl||canG?'<div><div class="rem"><span><b>'+(bl?"Abonnement : "+billOf(bs)[0]:"Abonnement")+'</b><span>'+(bs==="comp"?"Accès offert par vous":bEnd&&bs!=="none"?(bs==="canceled"||bl.cancelAt?"Accès jusqu'au ":"Renouvellement le ")+esc(bEnd):"Plan, messages et calls sans abonnement si offert")+'</span></span><span></span>'+(canG?'<button class="sw" role="switch" id="gA" aria-checked="'+(bs==="comp")+'" aria-label="Offrir l\'accès"></button>':'')+'</div><div id="gC"></div></div>':'')+'</section>'+
    '<section class="kpis"><div class="kpi"><span class="n">'+(W.length?dec(W[W.length-1].kg):"–")+'</span><span>kg, dernière pesée</span></div><div class="kpi"><span class="n">'+(ad!=null?ad+"%":"–")+'</span><span>de l\'objectif kcal (7 j)</span></div><div class="kpi"><span class="n">'+(M&&M.waist?dec(M.waist):"–")+'</span><span>cm de tour de taille</span></div></section>'+
    (W.length>1?'<section class="card stack"><h2>Poids</h2>'+sparkLine(W.slice(-12).map(w=>[w.date,w.kg]),"var(--weight)")+'</section>':'')+
    '<section class="card stack"><h2>Calories, 4 dernières semaines</h2>'+(D.length?daysChart(D):'<p class="small mute">Aucun repas noté.</p>')+'</section>'+

@@ -49,9 +49,10 @@
 
   // subscriptions row -> billing.status() shape (ARCHITECTURE.md v2). past_due counts: Stripe is still retrying.
   function bill(r) {
-    if (!r) return { active: false, status: "none", periodEnd: null };
+    if (!r) return { active: false, status: "none", periodEnd: null, cancelAt: false };
     var st = r.comp ? "comp" : r.status || "none";
-    return { active: ["active", "trialing", "past_due", "comp"].indexOf(st) >= 0, status: st, periodEnd: r.current_period_end || null };
+    return { active: ["active", "trialing", "past_due", "comp"].indexOf(st) >= 0, status: st, periodEnd: r.current_period_end || null,
+      cancelAt: !r.comp && !!r.cancel_at_period_end };
   }
   var call = function (b) {
     return { id: b.id, clientId: b.client_id, email: b.email, start: b.starts_at, end: b.ends_at, url: b.meeting_url || null };
@@ -164,7 +165,7 @@
       status: safe(async function () {
         var id = await uid();
         await session(); // fills role
-        if (role === "coach") return { active: true, status: "comp", periodEnd: null };
+        if (role === "coach") return { active: true, status: "comp", periodEnd: null, cancelAt: false };
         return bill(ok(await sb.from("subscriptions").select("*").eq("client_id", id).maybeSingle()));
       }),
       checkout: safe(async function () { return (await fn("create-checkout", { successUrl: here(), cancelUrl: here() })).url; }),
@@ -188,6 +189,12 @@
         if (!token || ["ios", "android"].indexOf(platform) < 0) return false;
         return ok(await sb.rpc("register_push", { tok: String(token), plat: platform })) === true;
       }, false),
+      // Sign-out: this device stops receiving the previous user's pushes (RLS: own rows only).
+      unregister: safe(async function (token) {
+        if (!token) return false;
+        ok(await sb.from("push_tokens").delete().eq("token", String(token)));
+        return true;
+      }, false),
     },
 
     coach: {
@@ -206,7 +213,7 @@
           var b = subs && bill(subs.find(function (x) { return x.client_id === row.id; }));
           var c = books && books.find(function (x) { return x.client_id === row.id; });
           return Object.assign({}, row, { notes: n.notes || "", data: n.data || {},
-            billing: b ? { status: b.status, periodEnd: b.periodEnd } : null,
+            billing: b ? { status: b.status, periodEnd: b.periodEnd, cancelAt: b.cancelAt } : null,
             nextCall: c ? { start: c.starts_at, end: c.ends_at, url: c.meeting_url || null } : null });
         });
       }),
