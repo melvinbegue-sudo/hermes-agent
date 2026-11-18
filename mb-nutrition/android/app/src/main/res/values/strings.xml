@@ -1,0 +1,9 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">MB NUTRITION</string>
+    <string name="title_activity_main">MB NUTRITION</string>
+    <string name="package_name">fr.mbnutrition.app</string>
+    <string name="custom_url_scheme">fr.mbnutrition.app</string>
+    <!-- Page affichée par Health Connect ("Politique de confidentialité"). A REMPLACER par la vraie URL. -->
+    <string name="health_connect_privacy_policy_url">https://mbnutrition.fr/confidentialite</string>
+</resources>
