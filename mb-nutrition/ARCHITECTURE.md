@@ -84,5 +84,6 @@ Non-secret app config in www/config.js: `calUrl` (e.g. "https://cal.com/melvin-b
 ### `MBNative` additions
 - `openUrl(url)` — opens in the system browser / in-app browser (@capacitor/browser); web: window.open / location.
 - `push.register()` -> `{token, platform}` or null (asks permission; native only).
-- `push.onTap(cb)` — cb({title, body, data}) when a push notification is tapped.
+- `push.onTap(cb)` — cb({title, body, data}) when a push notification is tapped (coach pushes carry data.view = "chat").
+- `onBrowserClosed(cb)` — cb() when the in-app browser is closed (native only; web: no-op).
 - Pre-session reminders keep using `notify.schedule(list)`.

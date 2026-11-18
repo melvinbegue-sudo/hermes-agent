@@ -170,3 +170,14 @@ test('onTap: push and local reminder give {title, body, data}', async () => {
     { title: '', body: '', data: {} }
   ]);
 });
+
+test('onBrowserClosed: Browser browserFinished calls back; web is a no-op', () => {
+  const br = listeners();
+  let n = 0;
+  load(nativeWin({ Browser: br }), 'native.js').MBNative.onBrowserClosed(() => n++);
+  br.l.browserFinished();
+  assert.strictEqual(n, 1);
+  const web = load({}, 'native.js');
+  assert.doesNotThrow(() => web.MBNative.onBrowserClosed(() => n++));
+  assert.strictEqual(n, 1);
+});

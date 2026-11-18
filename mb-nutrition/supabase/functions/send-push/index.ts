@@ -65,7 +65,7 @@ Deno.serve(async (req) => {
         body: JSON.stringify({ message: {
           token,
           notification: { title, body },
-          data: { title, body },
+          data: { title, body, view: "chat" }, // tap opens the chat (app.js onPushTap)
           apns: { payload: { aps: { sound: "default" } } },
         } }),
       });

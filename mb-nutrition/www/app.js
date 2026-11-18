@@ -834,7 +834,7 @@ function syncCoachView(v){if(sOpen)return syncClientView(v);const L=(sClients||[
    '<button class="lnk" id="scX" style="justify-self:start">Me déconnecter</button><p class="legal">Fiches et suivis lus sur le serveur MB NUTRITION, visibles par vous seul.</p>';
   $$("[data-so]",v).forEach(b=>b.onclick=()=>{sOpen=b.dataset.so;V.coach(v);reveal(v);scrollTo({top:0});});$("#scX",v).onclick=signOut;$("#pA",v)&&($("#pA",v).onclick=()=>pushSheet("all","Tous mes clients",L.length));}
 const billPill=c=>{if(!c.billing)return '<span class="pill '+(c.statut==="Actif"?"ok":"")+'">'+esc(c.statut)+'</span>';const[,k,l]=billOf(c.billing.status);return '<span class="pill '+k+'"><i></i>'+l+'</span>';};
-const callOf=c=>c.nextCall?.start||(typeof c.nextCall==="string"?c.nextCall:null);
+const callOf=c=>c.nextCall?.start||null;
 const callShort=t=>{const d=new Date(t);return isNaN(d)?"":d.toLocaleDateString("fr-FR",{weekday:"short",day:"numeric",month:"short"})+" · "+hhmm(+d);};
 /* Notification push envoyée par Melvin : un client ou tous */
 function pushSheet(to,name,n){sheet('<form class="stack" id="nF" novalidate><span class="eyebrow">Envoyer une notification</span><h2>'+esc(name)+'</h2>'+
@@ -873,6 +873,6 @@ async function syncClientView(v){v.innerHTML='<button class="lnk" id="bk" style=
 S=load();save();applyTheme();renderTabs();addEventListener("hashchange",route);
 const realign=()=>{const a=$('#tabs a[aria-current="page"]');a&&slide($("#tabs .ind"),a,$("#tabs"),false);$$(".dates,.segs").forEach(p=>slide($(".sel",p),$('[aria-pressed="true"]',p),p,false));};
 addEventListener("resize",realign);route();document.fonts?.ready.then(realign);initCaps();
-Promise.resolve(window.MBHealth?.available?.()).then(ok=>{hOK=!!ok;if(!hOK)return;healthPull();if(cur()==="profil"&&!$(".sheet"))rerender();}).catch(()=>{});if(syncOn())MBSync.session().then(s=>{if(s){acct=s;onLogin(false);}});try{window.MBNative?.push?.onTap?.(onPushTap);window.MBNative?.notify?.onTap?.(onPushTap);}catch(e){}document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")onResume();});
+Promise.resolve(window.MBHealth?.available?.()).then(ok=>{hOK=!!ok;if(!hOK)return;healthPull();if(cur()==="profil"&&!$(".sheet"))rerender();}).catch(()=>{});if(syncOn())MBSync.session().then(s=>{if(s){acct=s;onLogin(false);}});try{window.MBNative?.onBrowserClosed?.(()=>{pullBilling();setTimeout(pullBilling,3000);}); /* retour de Stripe : le webhook peut avoir quelques secondes de retard */window.MBNative?.push?.onTap?.(onPushTap);window.MBNative?.notify?.onTap?.(onPushTap);}catch(e){}document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")onResume();});
 })();
 

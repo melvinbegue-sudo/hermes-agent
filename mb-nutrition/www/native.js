@@ -107,6 +107,14 @@
       } catch (e) { return false; }
     },
 
+    // cb() quand le navigateur intégré se ferme (iOS : pas de visibilitychange au retour de Safari View Controller) ; web : rien.
+    onBrowserClosed: function (cb) {
+      try {
+        var br = P('Browser');
+        if (br && typeof cb === 'function') br.addListener('browserFinished', function () { try { cb(); } catch (e) {} });
+      } catch (e) {}
+    },
+
     // Push via Firebase Cloud Messaging : jeton FCM sur iOS et Android (le serveur envoie en FCM HTTP v1).
     push: {
       register: async function () {
