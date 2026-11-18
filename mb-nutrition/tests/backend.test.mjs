@@ -2,7 +2,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createHmac, generateKeyPairSync, createVerify } from "node:crypto";
-import { allowedUrl, calBooking, clip, fcmGone, fcmJwt, normStatus, periodEnd, pickSub, verifyCal, webhookRow } from "../supabase/functions/_shared/pure.mjs";
+import { allowedUrl, calBooking, cancellable, clip, fcmGone, fcmJwt, normStatus, periodEnd, pickSub, verifyCal, webhookRow } from "../supabase/functions/_shared/pure.mjs";
 
 test("Stripe status -> access status", () => {
   for (const s of ["active", "trialing", "past_due"]) assert.equal(normStatus(s), s);
@@ -85,4 +85,11 @@ test("FCM: RS256 JWT verifies with the service-account public key; dead-token de
   assert.equal(fcmGone({ error: { status: "NOT_FOUND", message: "Requested entity was not found." } }), false);
   assert.equal(fcmGone(null), false);
   assert.equal(clip("  ab  ", 1), "a");
+});
+
+test("delete-account cancels every subscription Stripe could still bill", () => {
+  const subs = [{ id: "a", status: "active" }, { id: "b", status: "canceled" }, { id: "c", status: "past_due" },
+    { id: "d", status: "incomplete_expired" }, { id: "e", status: "trialing" }, { id: "f", status: "incomplete" }];
+  assert.deepEqual(cancellable(subs), ["a", "c", "e", "f"]);
+  assert.deepEqual(cancellable(null), []);
 });

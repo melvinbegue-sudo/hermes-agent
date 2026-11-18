@@ -18,6 +18,7 @@ const calls = (S) => [
   S.analyzeMeal({}), S.coach.clients(), S.coach.client("id"), S.coach.update("id", { plan: {} }),
   S.billing.status(), S.billing.checkout(), S.billing.portal(), S.calls.next(), S.calls.list(), S.calls.list("id"),
   S.push.register("tok", "ios"), S.push.unregister("tok"), S.coach.grantAccess("id", true), S.coach.push({ to: "all", title: "t", body: "b" }),
+  S.consent.get(), S.consent.get("id"), S.consent.set({ health: true, version: "2026-11" }), S.account.export(), S.account.delete(),
 ];
 
 test("empty MB_CONFIG: disabled, every method resolves null/false", async () => {
@@ -89,4 +90,32 @@ test("push.register validates platform; coach.push returns the sent count", asyn
   assert.equal(await S.push.unregister("tok"), true);
   assert.equal(await S.coach.grantAccess("c1", true), true);
   assert.equal(await S.coach.push({ to: "all", title: "t", body: "b" }), 3);
+});
+
+test("consent get/set and account export/delete", async () => {
+  const t = { profiles: [{ id: "u1", role: "client" }], days: [{ date: "2026-11-18" }], weights: [], measures: [], checkins: [],
+    trainings: [], photos: [{ id: 1, path: "u1/meal/1.jpg" }], messages: [], bookings: [], subscriptions: [],
+    consents: [{ granted: true, version: "2026-11", at: "2026-11-18T10:00:00Z" }], push_tokens: [], ai_usage: [] };
+  const c = fake(t, "u1", {
+    storage: { from: () => ({ createSignedUrls: async (paths) => ({ data: paths.map((p) => ({ path: p, signedUrl: "https://s/" + p })), error: null }) }) },
+    functions: { invoke: async (name) => ({ data: name === "delete-account" ? { ok: true } : null, error: null }) },
+  });
+  c.auth.signOut = async () => ({ error: null });
+  const S = live(c);
+  assert.deepEqual(plain(await S.consent.get()), { health: true, version: "2026-11", at: "2026-11-18T10:00:00Z" });
+  assert.equal(await S.consent.set({ health: false, version: "2026-11" }), true);
+  assert.equal(await S.consent.set({ health: true }), false); // version required
+  const x = plain(await S.account.export());
+  assert.equal(x.userId, "u1");
+  assert.equal(x.email, "a@b.fr");
+  assert.deepEqual(x.profile, { id: "u1", role: "client" });
+  assert.equal(x.subscription, null);
+  assert.deepEqual(x.photos, [{ id: 1, path: "u1/meal/1.jpg", url: "https://s/u1/meal/1.jpg" }]);
+  for (const k of ["days", "weights", "measures", "checkins", "trainings", "messages", "bookings", "consents", "pushTokens", "aiUsage"])
+    assert.ok(Array.isArray(x[k]), k);
+  assert.equal(await S.account.delete(), true);
+  const none = live(fake({ consents: [] }, "u1", { functions: { invoke: async () => ({ data: null, error: new Error("403") }) } }));
+  assert.equal(await none.consent.get(), null);
+  assert.equal(await none.account.delete(), false);
+  assert.equal(await none.account.export(), null); // a missing table must not yield a silently partial export
 });

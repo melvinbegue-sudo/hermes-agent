@@ -37,17 +37,47 @@ const FOODS = {
   huile:       {n:"Huile d'olive", k:900,p:0,g:0,l:100, r:"Épicerie"},
   tortilla:    {n:"Tortillas complètes", k:300,p:9,g:48,l:7, r:"Boulangerie", piece:60, unit:"tortilla"},
   tortilla_sg: {n:"Galettes de maïs", k:220,p:6,g:45,l:3, r:"Boulangerie", piece:30, unit:"galette"},
+  lait:        {n:"Lait demi-écrémé", k:46,p:3.3,g:4.8,l:1.6, r:"Crèmerie"},
+  lait_soja:   {n:"Boisson soja nature", k:39,p:3.5,g:1.2,l:1.9, r:"Crèmerie"},
+  cottage:     {n:"Cottage cheese", k:100,p:11,g:3,l:4.5, r:"Crèmerie"},
+  emmental:    {n:"Emmental râpé", k:380,p:28,g:0,l:29.5, r:"Crèmerie"},
+  jambon:      {n:"Jambon blanc", k:112,p:20.5,g:0.6,l:3, r:"Protéines", piece:40, unit:"tranche"},
+  porc:        {n:"Filet mignon de porc", k:120,p:22,g:0,l:3.5, r:"Protéines"},
+  crevettes:   {n:"Crevettes cuites décortiquées", k:95,p:21,g:0,l:1, r:"Surgelés"},
+  sardines:    {n:"Sardines à l'huile égouttées", k:208,p:24,g:0,l:12.3, r:"Épicerie"},
+  whey:        {n:"Protéine whey", k:380,p:78,g:6,l:5, r:"Épicerie"},
+  proteine_veg:{n:"Protéine végétale (pois)", k:380,p:75,g:6,l:7, r:"Épicerie"},
+  haricots_rouges:{n:"Haricots rouges cuits", k:110,p:8,g:14,l:0.6, r:"Épicerie"},
+  lentilles_v: {n:"Lentilles vertes", k:330,p:24,g:48,l:1.6, r:"Épicerie"},
+  semoule:     {n:"Semoule complète", k:350,p:12,g:68,l:2, r:"Épicerie"},
+  galette_riz: {n:"Galettes de riz soufflé", k:385,p:8,g:80,l:3, r:"Épicerie", piece:9, unit:"galette"},
+  tomates_conc:{n:"Tomates concassées", k:30,p:1.3,g:4.5,l:0.2, r:"Épicerie", buy:400, unit:"boîte"},
+  coco:        {n:"Lait de coco allégé", k:110,p:1,g:2.5,l:10.5, r:"Épicerie"},
+  miel:        {n:"Miel", k:320,p:0.4,g:80,l:0, r:"Épicerie"},
+  chocolat:    {n:"Chocolat noir 70 %", k:570,p:8,g:33,l:42, r:"Épicerie"},
+  dattes:      {n:"Dattes sèches", k:285,p:2.5,g:65,l:0.3, r:"Épicerie"},
+  noix:        {n:"Cerneaux de noix", k:700,p:15,g:10,l:65, r:"Épicerie"},
+  compote:     {n:"Compote sans sucres ajoutés", k:60,p:0.3,g:13,l:0.1, r:"Épicerie", piece:100, unit:"pot"},
+  carotte:     {n:"Carottes", k:36,p:0.8,g:7,l:0.3, r:"Fruits et légumes"},
+  poivron:     {n:"Poivrons", k:30,p:1,g:5,l:0.3, r:"Fruits et légumes", buy:150, unit:"poivron"},
+  oignon:      {n:"Oignons", k:40,p:1.2,g:7.5,l:0.2, r:"Fruits et légumes", buy:100, unit:"oignon"},
+  champignons: {n:"Champignons de Paris", k:22,p:3,g:0.5,l:0.3, r:"Fruits et légumes"},
+  concombre:   {n:"Concombre", k:12,p:0.7,g:2,l:0.1, r:"Fruits et légumes", buy:300, unit:"concombre"},
+  kiwi:        {n:"Kiwi", k:58,p:1,g:11,l:0.6, r:"Fruits et légumes", piece:80, unit:"kiwi"},
+  orange:      {n:"Orange", k:45,p:0.9,g:9,l:0.2, r:"Fruits et légumes", piece:180, unit:"orange"},
+  epinards:    {n:"Épinards hachés", k:25,p:3,g:1,l:0.5, r:"Surgelés"},
+  petits_pois: {n:"Petits pois", k:70,p:5.5,g:9,l:0.5, r:"Surgelés"},
 };
 
 /* Substitutions selon le régime et les allergies déclarés au bilan */
 const SUBS = {
-  vege:   {poulet:"tofu", dinde:"tofu", boeuf:"lentilles", saumon:"tofu", cabillaud:"tofu", thon:"pois_chiches"},
-  pesce:  {poulet:"cabillaud", dinde:"cabillaud", boeuf:"saumon"},
-  lactose:{skyr:"yaourt_soja", fblanc:"yaourt_soja"},
-  gluten: {avoine:"avoine_sg", pain:"pain_sg", pates:"riz", tortilla:"tortilla_sg"},
-  noix:   {amandes:"graines", cacahuete:"graines"},
+  vege:   {jambon:"tofu", porc:"tofu", crevettes:"tofu", sardines:"pois_chiches", poulet:"tofu", dinde:"tofu", boeuf:"lentilles", saumon:"tofu", cabillaud:"tofu", thon:"pois_chiches"},
+  pesce:  {jambon:"thon", porc:"cabillaud", poulet:"cabillaud", dinde:"cabillaud", boeuf:"saumon"},
+  lactose:{lait:"lait_soja", cottage:"yaourt_soja", whey:"proteine_veg", skyr:"yaourt_soja", fblanc:"yaourt_soja"},
+  gluten: {semoule:"quinoa", avoine:"avoine_sg", pain:"pain_sg", pates:"riz", tortilla:"tortilla_sg"},
+  noix:   {noix:"graines", amandes:"graines", cacahuete:"graines"},
   oeufs:  {oeuf:"tofu"},
-  poisson:{saumon:"poulet", cabillaud:"poulet", thon:"poulet"},
+  poisson:{sardines:"poulet", crevettes:"poulet", saumon:"poulet", cabillaud:"poulet", thon:"poulet"},
 };
 /* Quantités de remplacement : même rôle dans l'assiette, poids ajusté */
 const SUB_RATIO = {lentilles:0.55, pois_chiches:1.2, tofu:1.1, graines:1, yaourt_soja:1, riz:0.95, oeuf_tofu:1};
@@ -119,11 +149,17 @@ const TITLE_W = {
   skyr:[/skyr/i], fblanc:[/fromage blanc/i], oeuf:[/omelette/i,/œufs/i], amandes:[/amandes/i], cacahuete:[/cacahuète/i],
   pates:[/pâtes complètes/i], avoine:[/avoine/i], riz:[/riz/i], quinoa:[/quinoa/i], pdt:[/pommes de terre/i], pdouce:[/patate douce/i],
   brocolis:[/brocolis/i], courgette:[/courgettes?/i], hverts:[/haricots verts/i], lentilles:[/lentilles/i], pois_chiches:[/pois chiches/i],
-  tofu:[/tofu/i], banane:[/banane/i], pomme:[/pomme(?! de terre)/i], frouges:[/fruits rouges/i], avocat:[/avocat/i],
+  tofu:[/tofu/i], jambon:[/jambon/i], porc:[/filet mignon/i], crevettes:[/crevettes/i], sardines:[/sardines/i],
+  lait:[/lait(?! de coco)/i], cottage:[/cottage cheese/i], whey:[/whey/i], semoule:[/semoule/i], noix:[/noix/i], banane:[/banane/i], pomme:[/pomme(?! de terre)/i], frouges:[/fruits rouges/i], avocat:[/avocat/i],
 };
 const TITLE_TO = {tofu:"tofu", lentilles:"lentilles", pois_chiches:"pois chiches", yaourt_soja:"yaourt soja", graines:"graines de courge",
-  riz:"riz", avoine_sg:"avoine sans gluten", cabillaud:"cabillaud", saumon:"saumon", poulet:"poulet"};
+  riz:"riz", avoine_sg:"avoine sans gluten", cabillaud:"cabillaud", saumon:"saumon", poulet:"poulet",
+  thon:"thon", lait_soja:"lait de soja", proteine_veg:"protéine végétale", quinoa:"quinoa"};
 
 /* Noms utilisés dans les étapes de recette, après substitution */
-const STEP_N = {"avoine": "les flocons d'avoine", "avoine_sg": "les flocons d'avoine sans gluten", "skyr": "le skyr", "yaourt_soja": "le yaourt au soja", "oeuf": "les œufs", "tofu": "le tofu", "pain": "le pain complet", "pain_sg": "le pain sans gluten", "cacahuete": "une cuillère de beurre de cacahuète", "graines": "une cuillère de graines de courge", "amandes": "quelques amandes concassées", "fblanc": "le fromage blanc", "poulet": "le poulet", "dinde": "la dinde", "boeuf": "le bœuf haché, 4 à 5 minutes à feu vif", "saumon": "le saumon", "cabillaud": "le cabillaud", "thon": "le thon émietté", "lentilles": "les lentilles corail (12 min de cuisson)", "pois_chiches": "les pois chiches égouttés", "riz": "le riz", "pates": "les pâtes", "tortilla": "les tortillas", "tortilla_sg": "les galettes de maïs"};
+const STEP_N = {"avoine": "les flocons d'avoine", "avoine_sg": "les flocons d'avoine sans gluten", "skyr": "le skyr", "yaourt_soja": "le yaourt au soja", "oeuf": "les œufs", "tofu": "le tofu", "pain": "le pain complet", "pain_sg": "le pain sans gluten", "cacahuete": "une cuillère de beurre de cacahuète", "graines": "une cuillère de graines de courge", "amandes": "quelques amandes concassées", "fblanc": "le fromage blanc", "poulet": "le poulet", "dinde": "la dinde", "boeuf": "le bœuf haché, 4 à 5 minutes à feu vif", "saumon": "le saumon", "cabillaud": "le cabillaud", "thon": "le thon émietté", "lentilles": "les lentilles corail (12 min de cuisson)", "pois_chiches": "les pois chiches égouttés", "riz": "le riz", "pates": "les pâtes", "tortilla": "les tortillas", "tortilla_sg": "les galettes de maïs",
+  "lait": "le lait", "lait_soja": "la boisson soja", "cottage": "le cottage cheese", "jambon": "le jambon", "porc": "le filet mignon",
+  "crevettes": "les crevettes", "sardines": "les sardines égouttées", "whey": "la whey", "proteine_veg": "la protéine végétale",
+  "haricots_rouges": "les haricots rouges égouttés", "lentilles_v": "les lentilles vertes", "semoule": "la semoule (5 min à couvert dans son volume d'eau bouillante)",
+  "quinoa": "le quinoa (12 min de cuisson)", "noix": "quelques cerneaux de noix"};
 

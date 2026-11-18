@@ -109,3 +109,7 @@ export function fcmGone(err) {
   if ((e.details || []).some((d) => d.errorCode === "UNREGISTERED")) return true; // not a bare 404: wrong project id also 404s
   return e.status === "INVALID_ARGUMENT" && /token/i.test(e.message || "");
 }
+
+// delete-account: the subscriptions Stripe could still bill (everything not already over).
+export const cancellable = (subs) =>
+  (subs || []).filter((s) => s && !["canceled", "incomplete_expired"].includes(s.status)).map((s) => s.id);

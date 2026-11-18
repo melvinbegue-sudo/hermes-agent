@@ -9,5 +9,10 @@
 	<true/>
 	<key>com.apple.developer.healthkit.access</key>
 	<array/>
+	<!-- partagé avec le widget MBWidget (Anneaux du jour) -->
+	<key>com.apple.security.application-groups</key>
+	<array>
+		<string>group.fr.mbnutrition.app</string>
+	</array>
 </dict>
 </plist>

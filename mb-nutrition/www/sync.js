@@ -31,14 +31,14 @@
   }
   var iso = function (d) { return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }; // local date, like app.js
 
-  // Downscale to ≤1280px JPEG (keeps uploads small, and the Edge Function only accepts JPEG ≤1.5 MB).
+  // Downscale to ≤1024px JPEG q0.8: small uploads, fewer image input tokens for analyze-meal (JPEG ≤1.5 MB only).
   async function toJpeg(blob) {
     try {
-      var bmp = await createImageBitmap(blob), k = Math.min(1, 1280 / Math.max(bmp.width, bmp.height));
+      var bmp = await createImageBitmap(blob), k = Math.min(1, 1024 / Math.max(bmp.width, bmp.height));
       var c = document.createElement("canvas");
       c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k);
       c.getContext("2d").drawImage(bmp, 0, 0, c.width, c.height);
-      return (await new Promise(function (r) { c.toBlob(r, "image/jpeg", 0.82); })) || blob;
+      return (await new Promise(function (r) { c.toBlob(r, "image/jpeg", 0.8); })) || blob;
     } catch (e) { return blob; }
   }
   async function base64(blob) {
@@ -193,6 +193,64 @@
       unregister: safe(async function (token) {
         if (!token) return false;
         ok(await sb.from("push_tokens").delete().eq("token", String(token)));
+        return true;
+      }, false),
+    },
+
+    // RGPD (ARCHITECTURE.md v3). Consent log is append-only server-side: set() adds a row, get() reads the latest.
+    consent: {
+      // clientId: the coach reading one of his clients' consent; omitted = mine.
+      get: safe(async function (clientId) {
+        var r = ok(await sb.from("consents").select("granted, version, at").eq("user_id", clientId || await uid())
+          .eq("kind", "health").order("at", { ascending: false }).order("id", { ascending: false }).limit(1))[0];
+        return r ? { health: r.granted === true, version: r.version, at: r.at } : null;
+      }),
+      set: safe(async function (c) {
+        var v = String((c && c.version) || "").slice(0, 40);
+        if (!v) return false;
+        ok(await sb.from("consents").insert({ kind: "health", version: v, granted: c.health === true }));
+        return true;
+      }, false),
+    },
+
+    account: {
+      // Right of access / portability (art. 15, 20): every row of mine, as a plain object for a JSON download.
+      export: safe(async function () {
+        var me = await uid(), email = ok(await sb.auth.getSession()).session.user.email;
+        var rows = async function (t, col, order) { // paged: the API returns at most 1000 rows per request
+          var out = [];
+          for (var i = 0; ; i += 1000) {
+            var page = ok(await sb.from(t).select("*").eq(col, me).order(order).range(i, i + 999));
+            out = out.concat(page);
+            if (page.length < 1000) return out;
+          }
+        };
+        var spec = [["profile", "profiles", "id", "id"], ["days", "days", "client_id", "date"],
+          ["weights", "weights", "client_id", "date"], ["measures", "measures", "client_id", "date"],
+          ["checkins", "checkins", "client_id", "date"], ["trainings", "trainings", "client_id", "date"],
+          ["photos", "photos", "client_id", "id"], ["messages", "messages", "client_id", "id"],
+          ["bookings", "bookings", "client_id", "id"], ["subscription", "subscriptions", "client_id", "client_id"],
+          ["consents", "consents", "user_id", "id"], ["pushTokens", "push_tokens", "user_id", "token"],
+          ["aiUsage", "ai_usage", "client_id", "day"]];
+        var got = await Promise.all(spec.map(function (x) { return rows(x[1], x[2], x[3]); }));
+        var out = { exportedAt: new Date().toISOString(), userId: me, email: email };
+        spec.forEach(function (x, i) { out[x[0]] = got[i]; });
+        out.profile = out.profile[0] || null;
+        out.subscription = out.subscription[0] || null;
+        if (out.photos.length) { // private bucket: short-lived links so the file can be fetched from the export
+          var urls = ok(await sb.storage.from("photos").createSignedUrls(out.photos.map(function (p) { return p.path; }), 3600));
+          var by = {};
+          urls.forEach(function (u) { by[u.path] = u.signedUrl || null; });
+          out.photos = out.photos.map(function (p) { return Object.assign({}, p, { url: by[p.path] || null }); });
+        }
+        return out;
+      }),
+      // Right to erasure (art. 17): Edge Function delete-account. The coach account gets false (403).
+      delete: safe(async function () {
+        var r = await fn("delete-account");
+        if (!r || r.ok !== true) return false;
+        role = null;
+        try { await sb.auth.signOut({ scope: "local" }); } catch (e) {} // the user no longer exists server-side
         return true;
       }, false),
     },
