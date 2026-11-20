@@ -218,11 +218,11 @@ V.accueil=v=>{
    '<h1>Votre nutrition, calée sur vos séances</h1>'+
    '<div class="login-card card stack"><span class="eyebrow">Espace client</span>'+(syncOn()?'<button class="btn gold block" id="em">Connexion par e-mail</button><div class="or"><span>ou avec un code</span></div>':'')+'<form class="stack" id="lg"><label class="f" for="lc">Code client<input class="input" id="lc" placeholder="MB-FORME-115-K7Q2-X" autocomplete="off" spellcheck="false"></label><button class="btn '+(syncOn()?"line":"gold")+' block" type="submit">'+(syncOn()?"Valider le code":"Me connecter")+'</button></form>'+
    '<div class="or"><span>ou</span></div><a class="btn line block" href="#bilan">Faire mon bilan</a><button class="lnk" id="demo" style="justify-self:center">Voir un exemple</button></div>'+
-   '<div id="coachIn">'+(coachOn?'<a class="card row between" href="#coach" style="text-decoration:none"><span class="row"><span class="ico"><svg aria-hidden="true"><use href="#i-coach"/></svg></span><b style="color:var(--ink)">Espace coach</b></span><svg class="chev" style="transform:rotate(-90deg)" aria-hidden="true"><use href="#i-chev"/></svg></a>':'')+'</div>'+
+   '<div id="coachIn">'+(coachOn||syncOn()?'<'+(coachOn?'a href="#coach"':'button type="button" id="cIn"')+' class="card row between" style="text-decoration:none;width:100%;text-align:left"><span class="row"><span class="ico"><svg aria-hidden="true"><use href="#i-coach"/></svg></span><b style="color:var(--ink)">Espace coach</b></span><svg class="chev" style="transform:rotate(-90deg)" aria-hidden="true"><use href="#i-chev"/></svg></'+(coachOn?'a':'button')+'>':'')+'</div>'+
    '<p class="legal" style="text-align:center">'+(syncOn()?"Avec compte, suivi partagé avec Melvin. Sans compte, tout reste ici.":"Données sur ce téléphone")+'</p></section>';
   $("#lg").onsubmit=e=>{e.preventDefault();if(!applyInput($("#lc").value)){$("#lc").focus();pulse($("#lc"));return;}
     if(S.example){toast("Connecté");go("bilan");}else go("journal");};
-  $("#demo").onclick=()=>{S.mode="demo";save();go("journal");};$("#em")&&($("#em").onclick=loginSheet);};
+  $("#demo").onclick=()=>{S.mode="demo";save();go("journal");};$("#em")&&($("#em").onclick=()=>loginSheet());$("#cIn")&&($("#cIn").onclick=()=>loginSheet("Espace coach"));};
 
 function rings3(items,size=172){const W=16,G=4,C=size/2;return '<svg viewBox="0 0 '+size+' '+size+'" aria-hidden="true">'+items.map((it,i)=>{const r=C-W/2-i*(W+G),L=2*Math.PI*r,ratio=Math.min(1,Math.max(0,it.v));return '<circle class="t" cx="'+C+'" cy="'+C+'" r="'+r+'" fill="none" stroke="'+it.c+'" stroke-width="'+W+'"/><circle class="v" cx="'+C+'" cy="'+C+'" r="'+r+'" fill="none" stroke="'+it.c+'" stroke-width="'+W+'" stroke-linecap="round" stroke-dasharray="'+L+'" stroke-dashoffset="'+L*(1-ratio)+'"/>';}).join("")+'</svg>';}
 V.journal=v=>{
@@ -763,8 +763,8 @@ function bindNudge(v){$("[data-nq]",v)&&($("[data-nq]",v).onclick=()=>addEntry(e
 /* ───────── Compte en ligne (sync.js / Supabase) : connexion par code e-mail, envoi auto, plan, messages ───────── */
 let syncCoach=false,pT=null,unread=false,unsub=null,msgs=[],chatFor=null,chatDraw=null;const pushed={};
 const syncOn=()=>!!window.MBSync?.enabled?.();
-function loginSheet(){let email="";
-  sheet('<div class="stack"><span class="eyebrow">Compte</span><h2>Connexion par e-mail</h2><div id="lgB" class="stack"></div></div>',(sh,close)=>{const B=$("#lgB",sh);
+function loginSheet(label="Compte"){let email="";
+  sheet('<div class="stack"><span class="eyebrow">'+esc(label)+'</span><h2>Connexion par e-mail</h2><div id="lgB" class="stack"></div></div>',(sh,close)=>{const B=$("#lgB",sh);
     const step1=()=>{B.innerHTML='<form class="stack" id="lgE" novalidate><label class="f" for="lgM">E-mail<input class="input" id="lgM" type="email" inputmode="email" autocomplete="email" value="'+esc(email)+'" placeholder="vous@exemple.fr"></label><button class="btn gold block" type="submit">Recevoir mon code</button></form>';
       $("#lgM",B).focus();$("#lgE",B).onsubmit=async e=>{e.preventDefault();email=$("#lgM",B).value.trim();if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){toast("E-mail invalide");$("#lgM",B).focus();return;}
         const b=$("button",B);b.disabled=true;b.innerHTML='<span class="spin" aria-hidden="true"></span>Envoi…';if(await MBSync.signIn(email))step2();else{b.disabled=false;b.textContent="Recevoir mon code";toast(navigator.onLine===false?"Pas de connexion, réessayez":"E-mail inconnu : demandez une invitation à Melvin");}};};
@@ -807,7 +807,7 @@ function chatSheet(cid,name){if(!cid&&locked())return paySheet();chatFor=cid||ac
 function accountCard(){if(!syncOn())return '';
   return online()?'<section class="card stack"><div class="row between"><span class="eyebrow">Compte en ligne</span><span class="pill ok">Synchronisé</span></div><p class="small mute">'+esc(acct.email)+'</p><div class="row" style="gap:8px;flex-wrap:wrap">'+(acct.role==="coach"?'':'<button class="btn sm" id="acM"><svg aria-hidden="true"><use href="#i-chat"/></svg>Messages<span class="udot" id="msgDot" style="position:static;margin-left:2px"'+(unread?'':' hidden')+'></span></button>')+'<button class="btn sm line" id="acX">Me déconnecter</button></div></section>':
    '<section class="card stack"><span class="eyebrow">Compte en ligne</span><h2>Suivi en direct avec Melvin</h2><button class="btn gold block" id="acL">Connexion par e-mail</button></section>';}
-function bindAccount(v){$("#acL",v)&&($("#acL",v).onclick=loginSheet);$("#acX",v)&&($("#acX",v).onclick=signOut);$("#acM",v)&&($("#acM",v).onclick=()=>chatSheet());}
+function bindAccount(v){$("#acL",v)&&($("#acL",v).onclick=()=>loginSheet());$("#acX",v)&&($("#acX",v).onclick=signOut);$("#acM",v)&&($("#acM",v).onclick=()=>chatSheet());}
 /* ───────── Abonnement (Stripe 87 €/mois), calls (Cal.com) : seulement client connecté en ligne ───────── */
 const PRICE=87,billOn=()=>online()&&acct.role!=="coach";
 /* Jamais vérifié (hors ligne) : on ne bloque pas */
