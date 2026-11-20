@@ -73,6 +73,8 @@ Non-secret app config in www/config.js: `calUrl` (e.g. "https://cal.com/melvin-b
   `active` is true for active/trialing/comp (and past_due within Stripe's retry window).
 - `billing.checkout()` -> Stripe Checkout URL (string) or null. Edge Function `create-checkout`.
 - `billing.portal()` -> Stripe customer-portal URL or null. Edge Function `billing-portal`.
+- `billing.sheetParams()` -> `{clientSecret, customerId, ephemeralKey, subscriptionId, publishableKey}` or null (never throws).
+  Edge Function `create-subscription` (subscription `default_incomplete`, an unpaid one is reused; 409 if already subscribed).
 - `calls.next()` -> `{start:iso, end:iso, url:string|null}` of the client's next booked call, or null.
 - `calls.list(clientId?)` -> upcoming calls (coach: all clients when clientId omitted).
 - `push.register(token, platform:"ios"|"android")` -> boolean (stores the device token).
@@ -86,6 +88,9 @@ Non-secret app config in www/config.js: `calUrl` (e.g. "https://cal.com/melvin-b
 - `push.register()` -> `{token, platform}` or null (asks permission; native only).
 - `push.onTap(cb)` — cb({title, body, data}) when a push notification is tapped (coach pushes carry data.view = "chat").
 - `onBrowserClosed(cb)` — cb() when the in-app browser is closed (native only; web: no-op).
+- `pay(params)` -> "paid" | "canceled" | "failed" | null — Stripe PaymentSheet (@capacitor-community/stripe: card, Apple Pay
+  on iOS, Google Pay on Android) with `billing.sheetParams()`. null = native path unavailable -> the app falls back to
+  `billing.checkout()`. Access unlocks when stripe-webhook writes the now-active subscription.
 - Pre-session reminders keep using `notify.schedule(list)`.
 
 ## v3 — RGPD, alertes, bilans, aliments, recettes, drive, badges, widget, cycle, PDF, sobriété
