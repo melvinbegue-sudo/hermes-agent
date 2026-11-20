@@ -170,6 +170,13 @@
       }),
       checkout: safe(async function () { return (await fn("create-checkout", { successUrl: here(), cancelUrl: here() })).url; }),
       portal: safe(async function () { return (await fn("billing-portal", { returnUrl: here() })).url; }),
+      // PaymentSheet params (create-subscription); null -> the app uses checkout() instead.
+      sheetParams: safe(async function () {
+        var r = await fn("create-subscription");
+        if (!r || !r.clientSecret || !r.customerId || !r.ephemeralKey || !r.publishableKey) return null;
+        return { clientSecret: r.clientSecret, customerId: r.customerId, ephemeralKey: r.ephemeralKey,
+          subscriptionId: r.subscriptionId || null, publishableKey: r.publishableKey };
+      }),
     },
 
     calls: {
