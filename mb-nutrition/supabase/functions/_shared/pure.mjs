@@ -113,3 +113,13 @@ export function fcmGone(err) {
 // delete-account: the subscriptions Stripe could still bill (everything not already over).
 export const cancellable = (subs) =>
   (subs || []).filter((s) => s && !["canceled", "incomplete_expired"].includes(s.status)).map((s) => s.id);
+
+// create-subscription: the customer's Stripe subs -> {conflict} (already paying), {reuse: sub} (an unpaid one for this
+// price still has its PaymentIntent secret: no pile-up on retries) or {create}. Stripe expires `incomplete` subs after 23 h.
+export function sheetPlan(subs, priceId) {
+  const list = (subs || []).slice().sort((a, b) => (b.created || 0) - (a.created || 0));
+  if (list.some((s) => ["active", "trialing", "past_due"].includes(s.status))) return { conflict: true };
+  const reuse = list.find((s) => s.status === "incomplete" && s.items?.data?.[0]?.price?.id === priceId &&
+    s.latest_invoice?.confirmation_secret?.client_secret);
+  return reuse ? { reuse } : { create: true };
+}

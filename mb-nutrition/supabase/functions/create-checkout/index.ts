@@ -1,7 +1,7 @@
 // create-checkout — Stripe Checkout (abonnement mensuel) pour le client connecté -> {url}.
 // Secrets: STRIPE_SECRET_KEY, STRIPE_PRICE_ID, APP_URLS (comma-separated allowed return URLs; first = default).
 import { admin, caller, CORS, json } from "../_shared/http.ts";
-import { stripe } from "../_shared/stripe.ts";
+import { customerFor, stripe } from "../_shared/stripe.ts";
 import { allowedUrl } from "../_shared/pure.mjs";
 
 Deno.serve(async (req) => {
@@ -23,16 +23,8 @@ Deno.serve(async (req) => {
   if (row && ["active", "trialing", "past_due"].includes(row.status)) return json({ error: "deja_abonne" }, 409);
 
   try {
-    let customer = row?.stripe_customer_id;
-    if (!customer) {
-      // Idempotency key: a double tap doesn't create two customers.
-      customer = (await stripe.customers.create(
-        { email: user.email, metadata: { user_id: user.id } },
-        { idempotencyKey: "customer-" + user.id },
-      )).id;
-      const up = await db.from("subscriptions").upsert({ client_id: user.id, stripe_customer_id: customer }, { onConflict: "client_id" });
-      if (up.error) return json({ error: "base_indisponible" }, 503);
-    }
+    const customer = await customerFor(db, user, row?.stripe_customer_id);
+    if (!customer) return json({ error: "base_indisponible" }, 503);
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
       customer,

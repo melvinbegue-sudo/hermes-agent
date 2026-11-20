@@ -2,7 +2,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createHmac, generateKeyPairSync, createVerify } from "node:crypto";
-import { allowedUrl, calBooking, cancellable, clip, fcmGone, fcmJwt, normStatus, periodEnd, pickSub, verifyCal, webhookRow } from "../supabase/functions/_shared/pure.mjs";
+import { allowedUrl, calBooking, cancellable, clip, fcmGone, fcmJwt, normStatus, periodEnd, pickSub, sheetPlan, verifyCal, webhookRow } from "../supabase/functions/_shared/pure.mjs";
 
 test("Stripe status -> access status", () => {
   for (const s of ["active", "trialing", "past_due"]) assert.equal(normStatus(s), s);
@@ -92,4 +92,15 @@ test("delete-account cancels every subscription Stripe could still bill", () => 
     { id: "d", status: "incomplete_expired" }, { id: "e", status: "trialing" }, { id: "f", status: "incomplete" }];
   assert.deepEqual(cancellable(subs), ["a", "c", "e", "f"]);
   assert.deepEqual(cancellable(null), []);
+});
+
+test("sheetPlan: live sub -> conflict; reuse the newest unpaid sub of this price; else create", () => {
+  const inc = (id, created, price = "price_1", secret = "pi_" + id + "_secret") =>
+    ({ id, status: "incomplete", created, items: { data: [{ price: { id: price } }] }, latest_invoice: { confirmation_secret: secret && { client_secret: secret } } });
+  assert.deepEqual(sheetPlan([inc("a", 1), { id: "b", status: "past_due", created: 0 }], "price_1"), { conflict: true });
+  assert.equal(sheetPlan([inc("a", 1), inc("b", 2)], "price_1").reuse.id, "b");
+  assert.deepEqual(sheetPlan([inc("a", 1, "price_old")], "price_1"), { create: true }); // price changed
+  assert.deepEqual(sheetPlan([inc("a", 1, "price_1", null)], "price_1"), { create: true });
+  assert.deepEqual(sheetPlan([{ id: "c", status: "canceled", created: 3 }, { id: "d", status: "incomplete_expired" }], "price_1"), { create: true });
+  assert.deepEqual(sheetPlan(undefined, "price_1"), { create: true });
 });
