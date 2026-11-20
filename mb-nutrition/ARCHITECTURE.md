@@ -40,7 +40,7 @@ Every bridge must load and no-op safely in a plain browser / the artifact (no Ca
 ### `window.MBSync` (www/sync.js)
 - `enabled()` (sync) -> boolean (MB_CONFIG filled and supabase-js loaded)
 - `session()` -> `{userId, email, role:"client"|"coach"}` or null
-- `signIn(email)` -> sends OTP code by email; `verify(email, code)` -> session or null; `signOut()`
+- `signIn(email)` -> sends OTP code by email (creates the account if new: open sign-up); `verify(email, code)` -> session or null; `signOut()`
 - `pushDay(iso, payload)` — upsert one day of client data (`{log, water, steps, health, fasting}`)
 - `pushProfile(profile)`, `pushWeight({date,kg})`, `pushMeasure({date, waist, hips, chest, arm, thigh})`
 - `uploadPhoto(blob, kind:"meal"|"progress")` -> storage path or null
@@ -58,7 +58,8 @@ Every bridge must load and no-op safely in a plain browser / the artifact (no Ca
 ## Abonnement, calls, notifications (v2)
 
 Decisions (owner): 87 €/month Stripe subscription; without an active subscription the client
-app shows a paywall (journal stays readable; plan, chat and calls are locked); the coach can
+app shows a paywall (journal stays readable; plan, chat, calls and AI photo analysis are locked —
+analyze-meal returns 402 `abonnement_requis` without `has_access`); the coach can
 grant free access per client. Calls are booked through Cal.com, unlimited for subscribers.
 Notifications: local pre-session reminders (device) + push notifications sent by the coach.
 All of this exists only when MBSync.enabled(); local/artifact mode never shows a paywall.

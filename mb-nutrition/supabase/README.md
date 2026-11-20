@@ -33,12 +33,14 @@ L'appli demande un code, pas un lien (un lien ouvrirait le navigateur au lieu de
    `Votre code MB NUTRITION : <h2>{{ .Token }}</h2> Il est valable 1 heure.`
    Faites de même dans le modèle **Confirm signup**. Enregistrez.
 2. **Authentication > Sign In / Providers > Email** : vérifiez que « Email OTP Length » vaut **6**.
-3. **Authentication > Sign In / Providers** : désactivez **Allow new users to sign up**. Seuls les clients que vous
-   invitez peuvent se connecter (personne ne peut créer de compte tout seul et consommer votre budget IA).
-   Pour ajouter un client : **Authentication > Users > Add user > Send invitation**, avec son e-mail.
-   Il ouvre ensuite l'appli, tape son e-mail et reçoit son code.
-4. L'envoi d'e-mails inclus dans l'offre gratuite est limité à quelques e-mails par heure. Avant d'inviter
-   tous vos clients, branchez votre propre service d'e-mail (**Authentication > Emails > SMTP Settings**, par exemple Brevo, gratuit).
+3. **Authentication > Sign In / Providers** : laissez **Allow new users to sign up** activé. N'importe qui peut créer
+   son compte dans l'appli avec son e-mail, puis s'abonner seul. Votre budget reste protégé côté serveur : sans
+   abonnement actif (ou accès offert), pas de chat, pas de plan et pas d'analyse photo par l'IA (étape 6).
+4. L'envoi d'e-mails inclus dans l'offre gratuite est limité à quelques e-mails par heure. Avant le lancement,
+   branchez votre propre service d'e-mail (**Authentication > Emails > SMTP Settings**, par exemple Brevo, gratuit).
+5. **Authentication > Rate Limits** : Supabase limite le nombre d'e-mails de code envoyés par heure (et impose un délai
+   entre deux codes pour une même adresse). Gardez ces limites : elles freinent les inscriptions en masse. Après avoir
+   branché votre SMTP, relevez seulement « Rate limit for sending emails » si de vrais clients ne reçoivent plus leur code.
 
 ## 4. Brancher l'appli
 
@@ -52,7 +54,7 @@ L'appli demande un code, pas un lien (un lien ouvrirait le navigateur au lieu de
 
 ## 5. Devenir le coach (Melvin)
 
-1. Invitez-vous vous-même (**Authentication > Users > Add user**), puis connectez-vous une première fois dans l'appli avec votre e-mail (vous recevez un code).
+1. Connectez-vous une première fois dans l'appli avec votre e-mail (vous recevez un code) : votre compte est créé.
 2. Dans **SQL Editor**, lancez ces deux lignes en mettant votre e-mail :
    ```sql
    update profiles set role = 'coach' where email = 'votre.email@exemple.fr';
@@ -63,7 +65,7 @@ L'appli demande un code, pas un lien (un lien ouvrirait le navigateur au lieu de
 ## 6. Analyse des photos de repas par l'IA
 
 1. Créez une clé API sur https://console.anthropic.com (**API Keys**). Ajoutez un moyen de paiement et,
-   par prudence, une limite de dépense mensuelle (**Limits**). Chaque client est limité à 30 analyses par jour.
+   par prudence, une limite de dépense mensuelle (**Limits**). L'analyse est réservée aux abonnés (et à vous), avec 30 analyses par jour et par client et 1 000 par jour au total.
 2. Supabase : **Edge Functions > Secrets** : ajoutez `ANTHROPIC_API_KEY` avec la clé, puis enregistrez.
 3. **Edge Functions > Deploy a new function > Via Editor** : nommez-la exactement `analyze-meal`,
    remplacez le code par le contenu de `supabase/functions/analyze-meal/index.ts`, puis cliquez sur **Deploy**.

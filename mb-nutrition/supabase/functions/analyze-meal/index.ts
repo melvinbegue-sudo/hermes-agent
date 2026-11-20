@@ -55,6 +55,11 @@ Deno.serve(async (req) => {
   const { data: auth, error: authErr } = await sb.auth.getUser(authHeader.replace(/^Bearer\s+/i, ""));
   if (authErr || !auth.user) return json({ error: "auth" }, 401);
 
+  // Open sign-up: only subscribers (paid, comp) and the coach may spend the AI budget.
+  const { data: access, error: accessErr } = await sb.rpc("has_access", { u: auth.user.id });
+  if (accessErr) return json({ error: "acces_indisponible" }, 503);
+  if (!access) return json({ error: "abonnement_requis" }, 402);
+
   // Input: {image: base64 JPEG, with or without data: prefix}
   let image = "";
   try {

@@ -83,8 +83,8 @@
     session: session,
 
     signIn: safe(async function (email) {
-      // shouldCreateUser false: only clients invited by the coach (Supabase dashboard) can sign in.
-      ok(await sb.auth.signInWithOtp({ email: String(email).trim(), options: { shouldCreateUser: false } }));
+      // shouldCreateUser true: open sign-up (anyone subscribes alone); cost is guarded server-side (has_access in RLS and analyze-meal).
+      ok(await sb.auth.signInWithOtp({ email: String(email).trim(), options: { shouldCreateUser: true } }));
       return true;
     }, false),
     verify: safe(async function (email, code) {
