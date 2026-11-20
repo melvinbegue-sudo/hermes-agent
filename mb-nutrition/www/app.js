@@ -445,7 +445,7 @@ function checkinSheet(){
 
 /* Bilan en 6 étapes */
 let wz=null;
-V.bilan=v=>{if(!wz)wz={s:0,p:S.example?Object.assign(structuredClone(PROFILE0),{objectif:S.profile.objectif}):structuredClone(S.profile)};const p=wz.p,s=wz.s,N=6,unl=s===N-1&&(!syncOn()||!acct||locked());let unlock=false;
+V.bilan=v=>{if(!wz)wz={s:0,p:S.example?Object.assign(structuredClone(PROFILE0),{objectif:S.profile.objectif}):structuredClone(S.profile)};const p=wz.p,s=wz.s,N=6,unl=s===N-1&&!native()&&(!syncOn()||!acct||locked());let unlock=false;
   const num=(id,l,val,min,max,step,unit)=>'<label class="f" for="'+id+'">'+l+'<span class="unit"><input class="input" id="'+id+'" type="number" inputmode="decimal" min="'+min+'" max="'+max+'" step="'+step+'" value="'+val+'"><span>'+unit+'</span></span></label>';
   const st=[
    ()=>'<h2>Faisons connaissance</h2><label class="f" for="bP">Prénom<input class="input" id="bP" autocomplete="given-name" value="'+esc(p.prenom)+'" placeholder="Prénom"></label><div class="stack" style="gap:8px"><b class="small" style="color:var(--ink)">Salle</b><div class="opts">'+SALLES.map(x=>'<button type="button" class="opt" data-sa="'+x+'" aria-pressed="'+(p.salle===x)+'"><span class="dot"></span><span><b>'+x+'</b></span><span></span></button>').join("")+'</div></div>',
@@ -817,7 +817,9 @@ function accountCard(){if(!syncOn())return '';
   return online()?'<section class="card stack"><div class="row between"><span class="eyebrow">Compte en ligne</span><span class="pill ok">Synchronisé</span></div><p class="small mute">'+esc(acct.email)+'</p><div class="row" style="gap:8px;flex-wrap:wrap">'+(acct.role==="coach"?'':'<button class="btn sm" id="acM"><svg aria-hidden="true"><use href="#i-chat"/></svg>Messages<span class="udot" id="msgDot" style="position:static;margin-left:2px"'+(unread?'':' hidden')+'></span></button>')+'<button class="btn sm line" id="acX">Me déconnecter</button></div></section>':
    '<section class="card stack"><span class="eyebrow">Compte en ligne</span><h2>Suivi en direct avec Melvin</h2><button class="btn gold block" id="acL">Connexion par e-mail</button></section>';}
 function bindAccount(v){$("#acL",v)&&($("#acL",v).onclick=()=>loginSheet());$("#acX",v)&&($("#acX",v).onclick=signOut);$("#acM",v)&&($("#acM",v).onclick=()=>chatSheet());}
-/* ───────── Abonnement (Stripe 87 €/mois), calls (Cal.com) : seulement client connecté en ligne ───────── */
+/* ───────── Abonnement (Stripe, web seulement), calls (Cal.com) : seulement client connecté en ligne ─────────
+   Appli iPhone / Android : rien n'est vendu (App Store 3.1.1 / Google Play) ; le coaching se paie hors appli
+   (lien de paiement de Melvin), l'appli vérifie seulement l'accès. Aucun prix, bouton ni lien de paiement en natif. */
 const PRICE=87,billOn=()=>online()&&acct.role!=="coach";
 /* Jamais vérifié (hors ligne) : on ne bloque pas */
 const locked=()=>billOn()&&S.billing?.active===false;
@@ -830,34 +832,30 @@ async function pullCall(){if(!billOn()||locked())return;let c=null;try{c=await M
 const openUrl=u=>{try{if(window.MBNative?.openUrl)return MBNative.openUrl(u);}catch(e){}location.href=u;};
 async function billGo(kind,btn){if(btn)btn.disabled=true;let u=null;try{u=await MBSync.billing?.[kind]?.();}catch(e){}if(btn)btn.disabled=false;
   if(typeof u!=="string"||!/^https:\/\//.test(u)){toast("Paiement indisponible, réessayez");return;}openUrl(u);}
-/* M'abonner : paiement dans l'appli (PaymentSheet) en natif ; web ou natif indisponible -> Stripe Checkout */
-async function subscribe(btn){let r=null;
-  if(native()&&window.MBNative?.canPay?.()){if(btn)btn.disabled=true;try{const p=await MBSync.billing?.sheetParams?.();if(p)r=await MBNative.pay(p);}catch(e){}if(btn)btn.disabled=false;}
-  if(r===null)return billGo("checkout",btn);if(r==="failed")return toast("Paiement non abouti");if(r!=="paid")return;
-  toast("Paiement validé");$(".sheet-back")?.click();
-  for(const ms of [1500,3000,6000]){await new Promise(ok=>setTimeout(ok,ms));await pullBilling();if(!locked())break;} /* le webhook Stripe arrive en quelques secondes */
-  if(!$(".sheet"))rerender();if(locked())toast("Activation en cours");}
+/* M'abonner (web seulement) : Stripe Checkout */
+const subscribe=btn=>native()?undefined:billGo("checkout",btn);
 const frDate=t=>{const d=new Date(t);return t&&!isNaN(d)?d.toLocaleDateString("fr-FR",{day:"numeric",month:"long",year:"numeric"}):"";};
 const callWhen=t=>{const d=new Date(t);return isNaN(d)?"":d.toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long"})+" à "+hhmm(+d);};
 const BILL={active:["Actif","ok","Actif"],trialing:["Actif","ok","Actif"],comp:["Accès offert","ok","Offert"],past_due:["Paiement en échec","bad","En échec"]},billOf=st=>BILL[st]||["Inactif","","Inactif"];
 const checkNote=()=>billOn()&&!S.billing&&window.MBSync?.billing?'<p class="small mute">Vérification…</p>':'';
-function payAlert(){return billOn()&&S.billing?.status==="past_due"?'<section class="card stack pay-alert" role="alert"><b>Paiement en échec</b><p class="small">Dernier prélèvement refusé</p><button class="btn block" data-portal>Mettre à jour</button></section>':'';}
-/* PaymentSheet natif : carte + Apple Pay (iOS) / Google Pay (Android) ; web : Stripe Checkout, carte */
-const payWays=()=>native()&&window.MBNative?.canPay?.()?"Carte, Apple Pay, Google Pay":"Carte bancaire";
-function payHtml(){return payAlert()+'<section class="card stack paywall"><span class="eyebrow">Suivi avec Melvin</span><p class="price"><b>'+PRICE+' €</b> / mois</p><ul class="incl">'+
+function payAlert(){return !native()&&billOn()&&S.billing?.status==="past_due"?'<section class="card stack pay-alert" role="alert"><b>Paiement en échec</b><p class="small">Dernier prélèvement refusé</p><button class="btn block" data-portal>Mettre à jour</button></section>':'';}
+/* Natif sans accès : écran neutre, sans prix ni lien */
+function payHtml(){if(native())return '<section class="card stack paywall"><span class="eyebrow">MB NUTRITION</span><h2>Accès réservé aux clients MB NUTRITION</h2><p class="small mute">Votre accès s\'active dès que votre coaching démarre.</p><button class="btn line block" data-refresh>Actualiser</button></section><p class="small mute" style="text-align:center">Journal et tendances restent accessibles</p>';
+  return payAlert()+'<section class="card stack paywall"><span class="eyebrow">Suivi avec Melvin</span><p class="price"><b>'+PRICE+' €</b> / mois</p><ul class="incl">'+
   ["Plan sur mesure","Messages","Calls illimités","Analyse photo par IA"].map(t=>'<li><svg aria-hidden="true"><use href="#i-check"/></svg>'+t+'</li>').join("")+
-  '</ul>'+(S.billing?.status==="past_due"?'':'<button class="btn gold block" data-checkout>S\'abonner · '+PRICE+' €/mois</button><p class="small mute pay-terms">Sans engagement · résiliable à tout moment<br>'+payWays()+'</p>')+'</section><p class="small mute" style="text-align:center">Journal et tendances restent accessibles</p>';}
+  '</ul>'+(S.billing?.status==="past_due"?'':'<button class="btn gold block" data-checkout>S\'abonner · '+PRICE+' €/mois</button><p class="small mute pay-terms">Sans engagement · résiliable à tout moment<br>Carte bancaire</p>')+'</section><p class="small mute" style="text-align:center">Journal et tendances restent accessibles</p>';}
 /* Jour : carte compacte en haut pour un client connecté non abonné, ou en mode local tant qu'il n'a pas demandé */
-const subTop=()=>locked()||!syncOn()&&!S.subAsked?'<section class="card sub-top"><span><b>Suivi avec Melvin</b><span class="sub">'+PRICE+' € / mois</span></span><button class="btn sm gold" data-checkout>S\'abonner</button></section>':'';
-function bindPay(r){$$("[data-checkout]",r).forEach(b=>b.onclick=()=>!syncOn()?localSub():acct?subscribe(b):loginSheet("Abonnement",true));$$("[data-portal]",r).forEach(b=>b.onclick=()=>billGo("portal",b));
+const subTop=()=>native()?'':locked()||!syncOn()&&!S.subAsked?'<section class="card sub-top"><span><b>Suivi avec Melvin</b><span class="sub">'+PRICE+' € / mois</span></span><button class="btn sm gold" data-checkout>S\'abonner</button></section>':'';
+function bindPay(r){$$("[data-refresh]",r).forEach(b=>b.onclick=async()=>{b.disabled=true;await pullBilling();b.disabled=false;if(locked())toast("Accès pas encore actif");else{$(".sheet-back")?.click();rerender();}});$$("[data-checkout]",r).forEach(b=>b.onclick=()=>!syncOn()?localSub():acct?subscribe(b):loginSheet("Abonnement",true));$$("[data-portal]",r).forEach(b=>b.onclick=()=>billGo("portal",b));
   $("[data-book]",r)&&($("[data-book]",r).onclick=()=>openUrl(calLink()));$("[data-join]",r)&&($("[data-join]",r).onclick=()=>openUrl(nCall.url));}
 function paySheet(){sheet('<div class="stack">'+payHtml()+'</div>',sh=>bindPay(sh));}
 /* Mode local (sans serveur) : l'offre est visible mais rien n'est bloqué ; paiement par le lien Stripe, sinon demande WhatsApp */
-function localSub(){const u=window.MB_CONFIG?.stripeLink||"",q=[];
+function localSub(){if(native())return;const u=window.MB_CONFIG?.stripeLink||"",q=[];
   if(/^https:\/\/(buy|checkout)\.stripe\.com\//.test(u)){if(acct?.email)q.push("prefilled_email="+encodeURIComponent(acct.email));if(S.clientId)q.push("client_reference_id="+encodeURIComponent(S.clientId));openExt(u+(q.length?(u.includes("?")?"&":"?")+q.join("&"):""));}
   else openExt(wa("Bonjour Melvin, je veux m'abonner au suivi MB NUTRITION ("+PRICE+" €/mois)."+(S.profile.prenom?" Prénom : "+S.profile.prenom:"")));
   S.subAsked=todayIso();save();if(!$(".sheet"))rerender();}
-function subCard(){if(!syncOn())return '<section class="card stack"><div class="row between"><span class="eyebrow">Mon abonnement</span>'+(S.subAsked?'<span class="pill">Demande envoyée</span>':'')+'</div><p class="price"><b>'+PRICE+' €</b> / mois</p><button class="btn gold block" data-checkout>S\'abonner</button><p class="small mute">Sans engagement · résiliable à tout moment</p></section>';
+function subCard(){if(native()){const b=billOn()&&S.billing;return b?'<section class="card stack"><div class="row between"><span class="eyebrow">Mon accès</span><span class="pill '+billOf(b.status)[1]+'">'+(b.active?b.status==="comp"?"Accès offert":"Actif":"Inactif")+'</span></div></section>':'';}
+  if(!syncOn())return '<section class="card stack"><div class="row between"><span class="eyebrow">Mon abonnement</span>'+(S.subAsked?'<span class="pill">Demande envoyée</span>':'')+'</div><p class="price"><b>'+PRICE+' €</b> / mois</p><button class="btn gold block" data-checkout>S\'abonner</button><p class="small mute">Sans engagement · résiliable à tout moment</p></section>';
   if(syncOn()&&!acct)return '<section class="card stack"><span class="eyebrow">Mon abonnement</span><p class="price"><b>'+PRICE+' €</b> / mois</p><button class="btn gold block" data-checkout>S\'abonner</button></section>';
   if(!billOn())return '';const b=S.billing;
   if(!b)return '<section class="card stack"><span class="eyebrow">Mon abonnement</span><p class="small mute">Vérification…</p></section>';
