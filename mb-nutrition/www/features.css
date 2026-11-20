@@ -90,3 +90,6 @@ ul.al li{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:6px 10px
 .irow{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:2px;border-top:1px solid var(--line)}.irow .item{border-top:0}
 .drv{display:grid;place-items:center;width:44px;height:44px;margin-right:-10px;border-radius:12px;color:var(--mute)}.drv svg{width:20px;height:20px}.drv:active{transform:scale(.94)}
 @media (hover:hover){.drv:hover{color:var(--ink);background:var(--sunk)}}
+
+/* Textes longs sans espace (note du coach, ajouts, messages) : retour à la ligne au lieu d'élargir la page */
+.note,.chiprow .small,.item b,.item .n{overflow-wrap:anywhere}

@@ -148,11 +148,16 @@ function exportCode(){const since=addDays(todayIso(),-27),days=[];
 const b64=o=>btoa(unescape(encodeURIComponent(JSON.stringify(o))));
 function readPlan(str){const m=String(str||"").match(/MBP1:([A-Za-z0-9+/=]+)/);if(!m)return null;try{const o=JSON.parse(decodeURIComponent(escape(atob(m[1]))));return o&&o.v===1?o:null;}catch(e){return null;}}
 /* Un message de Melvin peut contenir un code client (MB-…) et/ou un plan (MBP1:…). Renvoie true si quelque chose a été appliqué. */
+/* Code plan collé par le client : on ne garde que des valeurs saines (calories bornées, aliments connus, textes courts). */
+function cleanPlan(o){const s=(v,n)=>String(v??"").replace(/[\u0000-\u001f\u007f]/g," ").trim().slice(0,n),k=Math.round(+o.k||0),sw={},x=[];
+  if(o.sw&&typeof o.sw==="object"&&!Array.isArray(o.sw))Object.entries(o.sw).slice(0,60).forEach(([f,t])=>{if(typeof t==="string"&&Object.prototype.hasOwnProperty.call(FOODS,f)&&Object.prototype.hasOwnProperty.call(FOODS,t)&&f!==t)sw[f]=t;});
+  if(Array.isArray(o.x))o.x.slice(0,40).forEach(e=>{if(Array.isArray(e)&&s(e[0],60))x.push([s(e[0],60),typeof e[1]==="string"||typeof e[1]==="number"?s(e[1],40):""]);});
+  return {kcal:k>=1000&&k<=6000?k:0,swap:sw,extra:x,note:s(o.n,400),at:/^\d{4}-\d{2}-\d{2}$/.test(String(o.at||""))?o.at:todayIso()};}
 function applyInput(raw){const o=readPlan(raw);let msg=null;
   const cd=(o&&o.c)||String(raw||"").trim().toUpperCase().replace(/\s+/g,""),m=parseCode(cd);
   if(o&&S.clientId&&o.id&&String(o.id).toUpperCase()!==String(S.clientId).toUpperCase()&&!m){toast("Plan d'un autre client");return false;}
   if(m){S.code=cd;S.clientId=m.id;S.profile.objectif=m.obj;S.mode="client";msg="Connecté";}
-  if(o){S.plan={kcal:+o.k||0,swap:o.sw||{},extra:o.x||[],note:o.n||"",at:o.at||todayIso()};S.mode=S.mode||"client";msg=m?"Connecté · plan appliqué":"Plan appliqué";}
+  if(o){S.plan=cleanPlan(o);S.mode=S.mode||"client";msg=m?"Connecté · plan appliqué":"Plan appliqué";}
   if(!msg){toast("Code non reconnu, vérifiez-le");return false;}save();toast(msg);return true;}
 function readExport(str){const m=String(str||"").match(/MBN1:([A-Za-z0-9+/=]+)/);if(!m)return null;try{const o=JSON.parse(decodeURIComponent(escape(atob(m[1]))));return o&&o.v===1?o:null;}catch(e){return null;}}
 
