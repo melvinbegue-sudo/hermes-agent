@@ -65,14 +65,14 @@
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
 	<key>NSHealthShareUsageDescription</key>
-	<string>MB NUTRITION lit vos pas, votre fréquence cardiaque, votre sommeil, vos calories actives et votre poids pour adapter votre suivi nutritionnel. Ces données ne sont jamais vendues.</string>
-	<key>NSHealthUpdateUsageDescription</key>
-	<string>MB NUTRITION n'écrit aucune donnée dans Santé.</string>
+	<string>MB NUTRITION lit vos pas, votre sommeil, votre fréquence cardiaque et votre poids pour les afficher dans votre journal et, avec votre accord, les partager avec votre coach.</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>remote-notification</string>
 	</array>
 	<key>NSCameraUsageDescription</key>
-	<string>La caméra sert à scanner le code-barres des aliments.</string>
+	<string>Scanner le code-barres d'un produit et photographier vos repas</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Ajouter une photo de repas ou de progression</string>
 </dict>
 </plist>
