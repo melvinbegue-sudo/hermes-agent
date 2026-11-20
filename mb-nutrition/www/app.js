@@ -445,7 +445,7 @@ function checkinSheet(){
 
 /* Bilan en 6 étapes */
 let wz=null;
-V.bilan=v=>{if(!wz)wz={s:0,p:S.example?Object.assign(structuredClone(PROFILE0),{objectif:S.profile.objectif}):structuredClone(S.profile)};const p=wz.p,s=wz.s,N=6,unl=s===N-1&&syncOn()&&(!acct||locked());let unlock=false;
+V.bilan=v=>{if(!wz)wz={s:0,p:S.example?Object.assign(structuredClone(PROFILE0),{objectif:S.profile.objectif}):structuredClone(S.profile)};const p=wz.p,s=wz.s,N=6,unl=s===N-1&&(!syncOn()||!acct||locked());let unlock=false;
   const num=(id,l,val,min,max,step,unit)=>'<label class="f" for="'+id+'">'+l+'<span class="unit"><input class="input" id="'+id+'" type="number" inputmode="decimal" min="'+min+'" max="'+max+'" step="'+step+'" value="'+val+'"><span>'+unit+'</span></span></label>';
   const st=[
    ()=>'<h2>Faisons connaissance</h2><label class="f" for="bP">Prénom<input class="input" id="bP" autocomplete="given-name" value="'+esc(p.prenom)+'" placeholder="Prénom"></label><div class="stack" style="gap:8px"><b class="small" style="color:var(--ink)">Salle</b><div class="opts">'+SALLES.map(x=>'<button type="button" class="opt" data-sa="'+x+'" aria-pressed="'+(p.salle===x)+'"><span class="dot"></span><span><b>'+x+'</b></span><span></span></button>').join("")+'</div></div>',
@@ -473,7 +473,7 @@ V.bilan=v=>{if(!wz)wz={s:0,p:S.example?Object.assign(structuredClone(PROFILE0),{
       else{S.log={};S.water={};S.checkins=[];S.trainings=[];S.weights=[];S.steps={};S.fasts=[];S.measures=[];S.hr={};S.sleep={};S.active={};}}S.weights=S.weights.filter(x=>x.date!==todayIso());S.weights.push({date:todayIso(),kg:p.poids});save();
     const msg="Bilan MB NUTRITION\nPrénom : "+p.prenom+"\nSalle : "+(p.salle||"non précisée")+"\nProfil : "+(p.sexe==="f"?"femme":"homme")+", "+p.age+" ans, "+p.taille+" cm, "+dec(p.poids)+" kg\nObjectif : "+OBJECTIFS[p.objectif].label+"\nEntraînement : "+p.sport+", "+plural(p.seances,"séance")+" par semaine, intensité "+INT_TXT[p.intensite-1].toLowerCase()+", "+MOMENT_TXT[p.moment]+"\nAlimentation : "+REG_TXT[p.regime].toLowerCase()+"\nAllergies : "+(p.allergies.map(a=>ALL_TXT[a].toLowerCase()).join(", ")||"aucune")+"\nBesoin estimé : "+fmt(targetKcal(p))+" kcal/jour"+(S.clientId?"\nCode client : "+S.code:"");
     wz=null;selDate=todayIso();go("journal");if(wasEx)healthPull();
-    if(unlock)return setTimeout(()=>acct?subscribe():loginSheet("Abonnement",true),300); /* le profil part avec la synchro : pas besoin du message WhatsApp */
+    if(unlock)return setTimeout(()=>!syncOn()?localSub():acct?subscribe():loginSheet("Abonnement",true),300); /* le profil part avec la synchro : pas besoin du message WhatsApp */
     setTimeout(()=>sheet('<div class="stack"><span class="eyebrow">Bilan enregistré</span><h2>Envoyer à Melvin</h2>'+(S.clientId?'':'<p class="small mute">Il vous enverra votre code client</p>')+'<pre class="code clip">'+esc(msg)+'</pre><a class="btn gold block" href="'+wa(msg)+'" target="_blank" rel="noopener"><svg aria-hidden="true"><use href="#i-wa"/></svg>Envoyer sur WhatsApp</a><button class="btn line block" data-cp>Copier</button></div>',sh=>{$("[data-cp]",sh).onclick=e=>copy(msg,e.currentTarget);}),300);};};
 
 V.profil=v=>{const P=S.profile,code=S.code&&parseCode(S.code);
@@ -847,12 +847,18 @@ const payWays=()=>native()&&window.MBNative?.canPay?.()?"Carte, Apple Pay, Googl
 function payHtml(){return payAlert()+'<section class="card stack paywall"><span class="eyebrow">Suivi avec Melvin</span><p class="price"><b>'+PRICE+' €</b> / mois</p><ul class="incl">'+
   ["Plan sur mesure","Messages","Calls illimités","Analyse photo par IA"].map(t=>'<li><svg aria-hidden="true"><use href="#i-check"/></svg>'+t+'</li>').join("")+
   '</ul>'+(S.billing?.status==="past_due"?'':'<button class="btn gold block" data-checkout>S\'abonner · '+PRICE+' €/mois</button><p class="small mute pay-terms">Sans engagement · résiliable à tout moment<br>'+payWays()+'</p>')+'</section><p class="small mute" style="text-align:center">Journal et tendances restent accessibles</p>';}
-/* Jour : carte compacte en haut pour un client connecté non abonné */
-const subTop=()=>locked()?'<section class="card sub-top"><span><b>Suivi avec Melvin</b><span class="sub">'+PRICE+' € / mois</span></span><button class="btn sm gold" data-checkout>S\'abonner</button></section>':'';
-function bindPay(r){$$("[data-checkout]",r).forEach(b=>b.onclick=()=>acct?subscribe(b):loginSheet("Abonnement",true));$$("[data-portal]",r).forEach(b=>b.onclick=()=>billGo("portal",b));
+/* Jour : carte compacte en haut pour un client connecté non abonné, ou en mode local tant qu'il n'a pas demandé */
+const subTop=()=>locked()||!syncOn()&&!S.subAsked?'<section class="card sub-top"><span><b>Suivi avec Melvin</b><span class="sub">'+PRICE+' € / mois</span></span><button class="btn sm gold" data-checkout>S\'abonner</button></section>':'';
+function bindPay(r){$$("[data-checkout]",r).forEach(b=>b.onclick=()=>!syncOn()?localSub():acct?subscribe(b):loginSheet("Abonnement",true));$$("[data-portal]",r).forEach(b=>b.onclick=()=>billGo("portal",b));
   $("[data-book]",r)&&($("[data-book]",r).onclick=()=>openUrl(calLink()));$("[data-join]",r)&&($("[data-join]",r).onclick=()=>openUrl(nCall.url));}
 function paySheet(){sheet('<div class="stack">'+payHtml()+'</div>',sh=>bindPay(sh));}
-function subCard(){if(syncOn()&&!acct)return '<section class="card stack"><span class="eyebrow">Mon abonnement</span><p class="price"><b>'+PRICE+' €</b> / mois</p><button class="btn gold block" data-checkout>S\'abonner</button></section>';
+/* Mode local (sans serveur) : l'offre est visible mais rien n'est bloqué ; paiement par le lien Stripe, sinon demande WhatsApp */
+function localSub(){const u=window.MB_CONFIG?.stripeLink||"",q=[];
+  if(/^https:\/\/(buy|checkout)\.stripe\.com\//.test(u)){if(acct?.email)q.push("prefilled_email="+encodeURIComponent(acct.email));if(S.clientId)q.push("client_reference_id="+encodeURIComponent(S.clientId));openExt(u+(q.length?(u.includes("?")?"&":"?")+q.join("&"):""));}
+  else openExt(wa("Bonjour Melvin, je veux m'abonner au suivi MB NUTRITION ("+PRICE+" €/mois)."+(S.profile.prenom?" Prénom : "+S.profile.prenom:"")));
+  S.subAsked=todayIso();save();if(!$(".sheet"))rerender();}
+function subCard(){if(!syncOn())return '<section class="card stack"><div class="row between"><span class="eyebrow">Mon abonnement</span>'+(S.subAsked?'<span class="pill">Demande envoyée</span>':'')+'</div><p class="price"><b>'+PRICE+' €</b> / mois</p><button class="btn gold block" data-checkout>S\'abonner</button><p class="small mute">Sans engagement · résiliable à tout moment</p></section>';
+  if(syncOn()&&!acct)return '<section class="card stack"><span class="eyebrow">Mon abonnement</span><p class="price"><b>'+PRICE+' €</b> / mois</p><button class="btn gold block" data-checkout>S\'abonner</button></section>';
   if(!billOn())return '';const b=S.billing;
   if(!b)return '<section class="card stack"><span class="eyebrow">Mon abonnement</span><p class="small mute">Vérification…</p></section>';
   const[l,c]=billOf(b.status),end=frDate(b.periodEnd);
