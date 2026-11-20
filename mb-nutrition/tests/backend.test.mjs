@@ -2,7 +2,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createHmac, generateKeyPairSync, createVerify } from "node:crypto";
-import { allowedUrl, calBooking, cancellable, clip, fcmGone, fcmJwt, normStatus, periodEnd, pickSub, verifyCal, webhookRow } from "../supabase/functions/_shared/pure.mjs";
+import { allowedUrl, calBooking, cancellable, clientByEmail, clip, fcmGone, fcmJwt, normStatus, periodEnd, pickSub, verifyCal, webhookRow } from "../supabase/functions/_shared/pure.mjs";
 
 test("Stripe status -> access status", () => {
   for (const s of ["active", "trialing", "past_due"]) assert.equal(normStatus(s), s);
@@ -33,6 +33,17 @@ test("webhookRow: ignore unknown / deleted clients; row never carries comp", () 
   assert.equal(none.status, "none");
   assert.equal(none.cancel_at_period_end, false);
   assert.equal("comp" in none, false);
+});
+
+test("clientByEmail: payment-link customer -> the one client with that e-mail; never the coach", () => {
+  const P = [{ id: "u1", role: "client", email: "Lea.Martin@Mail.fr" }, { id: "c1", role: "coach", email: "melvin.begue@mb-nutritions.com" }];
+  assert.equal(clientByEmail(" lea.martin@mail.FR ", P), "u1"); // case and spaces ignored
+  assert.equal(clientByEmail("autre@mail.fr", P), null); // no match -> ignored
+  assert.equal(clientByEmail("Melvin.Begue@mb-nutritions.com", P), null); // coach -> ignored
+  assert.equal(clientByEmail("lea_martin@mail.fr", [{ id: "u2", role: "client", email: "leaXmartin@mail.fr" }]), null); // no LIKE wildcard
+  assert.equal(clientByEmail("a@b.fr", [{ id: "u1", role: "client", email: "a@b.fr" }, { id: "u2", role: "client", email: "A@b.fr" }]), null); // ambiguous
+  assert.equal(clientByEmail("", P), null);
+  assert.equal(clientByEmail(null, undefined), null);
 });
 
 test("allowedUrl: only allowlisted origins, else first entry", () => {

@@ -38,6 +38,15 @@ export function webhookRow({ clientId, hasProfile, customer, subs, now = new Dat
   } };
 }
 
+// Payment-link customers (Melvin's Stripe link, paid outside the app) carry no user_id: match the Stripe customer's
+// e-mail to exactly one client profile. Never the coach; no match or several -> null (the event is ignored).
+export function clientByEmail(email, profiles) {
+  const e = String(email ?? "").trim().toLowerCase();
+  if (!e) return null;
+  const hits = (profiles || []).filter((p) => p && p.role === "client" && String(p.email ?? "").trim().toLowerCase() === e);
+  return hits.length === 1 ? hits[0].id : null;
+}
+
 // Redirect URL from the app, accepted only if its origin is in the allowlist; else the first allowed URL.
 export function allowedUrl(url, allow) {
   const list = String(allow || "").split(",").map((s) => s.trim()).filter(Boolean);

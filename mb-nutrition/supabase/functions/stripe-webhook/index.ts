@@ -5,7 +5,7 @@
 // current state, so retries, duplicates and out-of-order deliveries all converge.
 import { admin, json } from "../_shared/http.ts";
 import { Stripe, stripe } from "../_shared/stripe.ts";
-import { webhookRow } from "../_shared/pure.mjs";
+import { clientByEmail, webhookRow } from "../_shared/pure.mjs";
 
 const crypto = Stripe.createSubtleCryptoProvider();
 const HANDLED = new Set([
@@ -32,13 +32,25 @@ Deno.serve(async (req) => {
 
   const db = admin();
   try {
-    // Which client? Our row (written by create-checkout), else the ids we put in Stripe metadata.
+    // Which client? Our row (create-checkout, or an earlier e-mail match), else the ids we put in Stripe metadata,
+    // else the customer's e-mail (payment link sent by Melvin: no metadata). The upsert then stores stripe_customer_id.
+    // shortcut: a client paying by link AND by in-web Checkout gets one row for the last customer seen; fine for one sub per client.
     const { data: row, error } = await db.from("subscriptions").select("client_id").eq("stripe_customer_id", customer).maybeSingle();
     if (error) throw error;
-    let clientId: string | null = row?.client_id ?? obj.client_reference_id ?? obj.metadata?.user_id ?? null;
+    // client_reference_id from the web payment link is the client code (MB-…), not a user id: only a uuid counts.
+    const ref = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(obj.client_reference_id ?? "") ? obj.client_reference_id : null;
+    let clientId: string | null = row?.client_id ?? ref ?? obj.metadata?.user_id ?? null;
     if (!clientId) {
       const c = await stripe.customers.retrieve(customer);
-      clientId = "deleted" in c && c.deleted ? null : c.metadata?.user_id ?? null;
+      const live = !("deleted" in c && c.deleted);
+      clientId = live ? c.metadata?.user_id ?? null : null;
+      const email: string | null = live ? c.email ?? obj.customer_details?.email ?? null : null;
+      if (!clientId && email) {
+        const q = await db.from("profiles").select("id, role, email")
+          .ilike("email", email.trim().replace(/[\\%_]/g, "\\$&")).limit(5); // escaped: exact, case-insensitive
+        if (q.error) throw q.error;
+        clientId = clientByEmail(email, q.data);
+      }
     }
     let hasProfile = false, subs: unknown[] = [];
     if (clientId) {
