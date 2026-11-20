@@ -64,6 +64,13 @@ grant free access per client. Calls are booked through Cal.com, unlimited for su
 Notifications: local pre-session reminders (device) + push notifications sent by the coach.
 All of this exists only when MBSync.enabled(); local/artifact mode never shows a paywall.
 
+Store decision (owner, 21/11): coaching is paid OUTSIDE the app (Stripe payment link sent by Melvin). When
+`MBNative.isNative()` the app sells nothing (Apple 3.1.1 / anti-steering, Google Play Billing): no price, no
+"S'abonner", no Apple Pay / Google Pay, no link to Checkout, the portal or any payment page. Access = client code
+(local mode) or active subscription / comp (sync mode). Native + `locked()` shows a neutral screen
+("Accès réservé aux clients MB NUTRITION" + "Actualiser" = re-pull `billing.status()`); Moi shows status only
+(Actif / Accès offert / Inactif). The web build (artifact / browser) keeps the offer: Checkout, portal, `stripeLink`.
+
 Secrets live in Supabase (Edge Function secrets), never in the app: STRIPE_SECRET_KEY,
 STRIPE_WEBHOOK_SECRET, STRIPE_PRICE_ID, CAL_WEBHOOK_SECRET, FCM_SERVICE_ACCOUNT (JSON).
 Non-secret app config in www/config.js: `calUrl` (e.g. "https://cal.com/melvin-begue/call").
@@ -72,10 +79,12 @@ Non-secret app config in www/config.js: `calUrl` (e.g. "https://cal.com/melvin-b
 - `billing.status()` -> `{active:boolean, status:"active"|"trialing"|"past_due"|"canceled"|"none"|"comp", periodEnd:iso|null, cancelAt:boolean}` or null.
   `cancelAt` is true when the client cancelled: access runs until periodEnd, no renewal.
   `active` is true for active/trialing/comp (and past_due within Stripe's retry window).
-- `billing.checkout()` -> Stripe Checkout URL (string) or null. Edge Function `create-checkout`.
-- `billing.portal()` -> Stripe customer-portal URL or null. Edge Function `billing-portal`.
-- `billing.sheetParams()` -> `{clientSecret, customerId, ephemeralKey, subscriptionId, publishableKey}` or null (never throws).
-  Edge Function `create-subscription` (subscription `default_incomplete`, an unpaid one is reused; 409 if already subscribed).
+- `billing.checkout()` -> Stripe Checkout URL (string) or null. Edge Function `create-checkout`. Web only.
+- `billing.portal()` -> Stripe customer-portal URL or null. Edge Function `billing-portal`. Web only.
+- `stripe-webhook` resolves the client from our row (stripe_customer_id), else a uuid `client_reference_id` /
+  `metadata.user_id`, else the Stripe customer's e-mail (lowercased) matched to exactly one `profiles.email` with
+  role client (never the coach; no match -> ignored). The upsert stores stripe_customer_id, so payment-link
+  payments unlock access automatically when the client paid with the same e-mail as in the app.
 - `calls.next()` -> `{start:iso, end:iso, url:string|null}` of the client's next booked call, or null.
 - `calls.list(clientId?)` -> upcoming calls (coach: all clients when clientId omitted).
 - `push.register(token, platform:"ios"|"android")` -> boolean (stores the device token).
@@ -89,10 +98,7 @@ Non-secret app config in www/config.js: `calUrl` (e.g. "https://cal.com/melvin-b
 - `push.register()` -> `{token, platform}` or null (asks permission; native only).
 - `push.onTap(cb)` — cb({title, body, data}) when a push notification is tapped (coach pushes carry data.view = "chat").
 - `onBrowserClosed(cb)` — cb() when the in-app browser is closed (native only; web: no-op).
-- `pay(params)` -> "paid" | "canceled" | "failed" | null — Stripe PaymentSheet (@capacitor-community/stripe: card, Apple Pay
-  on iOS, Google Pay on Android) with `billing.sheetParams()`. null = native path unavailable -> the app falls back to
-  `billing.checkout()`. Access unlocks when stripe-webhook writes the now-active subscription.
-- `canPay()` -> boolean: the Stripe plugin is present (checked before asking the server for `sheetParams`).
+- No in-app payment: no Stripe plugin, no Apple Pay entitlement, no Google Pay wallet meta-data.
 - Pre-session reminders keep using `notify.schedule(list)`.
 
 ## v3 — RGPD, alertes, bilans, aliments, recettes, drive, badges, widget, cycle, PDF, sobriété
@@ -108,13 +114,13 @@ weight flat 3 weeks with objectif perte/muscle, < 50 % of planned sessions this 
 check-in > 10 days late, payment failed.
 
 Data controller (privacy page): BEGUE Melvin, entreprise individuelle, SIRET 981 481 864 00016,
-contact melvin.begue@gmail.com, address [À COMPLÉTER]. Supabase project must be in an EU region.
+contact melvin.begue@mb-nutritions.com, 19 rue du Moulin de la Chapelle, 45340 Beaune-la-Rolande. Supabase project must be in an EU region.
 
 ### Files & ownership
 - `www/data.js` — recipes (MEALS/WEEK extended), DRIVE = {leclerc:{name,search:q=>url}, carrefour:{…}}.
 - `www/foods/ciqual.json` — Ciqual (Anses, Licence Ouverte) subset, lazy-loaded on first food search:
   `[[id, name, kcal, p, g, l, rayon]]` per 100 g. Loader `window.MBFoods.search(q, limit)` in `www/foods.js` (async).
-- `www/legal.js` — `window.MB_LEGAL = {short:"…", privacyHtml:"…", consentText:"…", version:"2026-11"}`.
+- `www/legal.js` — `window.MB_LEGAL = {short:"…", privacyHtml:"…", consentText:"…", version:"2026-11-21"}`.
 - `www/vendor/jspdf.umd.min.js` — lazy-loaded only when exporting a PDF.
 - `www/vendor/supabase.js` — loaded only when MB_CONFIG.supabaseUrl is set (perf).
 
