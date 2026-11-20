@@ -16,14 +16,12 @@ mensurations et photos, espace coach avec tous vos clients, chat, et analyse des
 
 ## 2. Créer les tables (copier-coller)
 
-1. Menu de gauche : **SQL Editor**, puis « New query ».
-2. Ouvrez le fichier `supabase/migrations/0001_init.sql`, copiez **tout** le contenu, collez-le, cliquez sur **Run**.
-3. Le message « Success. No rows returned » doit s'afficher. Ne le lancez qu'une fois.
-4. Nouvelle requête, même chose avec `supabase/migrations/0002_billing_calls_push.sql` (abonnement, calls, notifications).
-   Une seule fois aussi, et toujours **après** le 0001.
-5. Puis `supabase/migrations/0003_consent.sql` (consentement RGPD aux données de santé), une fois, après le 0002.
-   À partir de là, un client qui n'a pas donné son accord dans l'appli ne peut plus envoyer ses journées, poids,
-   mensurations, bilans ni photos : tout reste sur son téléphone.
+Ouvrez Supabase › SQL Editor › New query, collez tout le contenu de ALL_IN_ONE.sql, cliquez Run. Une seule fois.
+
+Le fichier est `supabase/ALL_IN_ONE.sql`. Le message « Success. No rows returned » doit s'afficher.
+Note : il regroupe les fichiers `supabase/migrations/0001_init.sql`, `0002_billing_calls_push.sql` et `0003_consent.sql`
+(à n'utiliser séparément que si un développeur vous le demande). Un client qui n'a pas donné son accord dans l'appli
+ne peut pas envoyer ses journées, poids, mensurations, bilans ni photos : tout reste sur son téléphone.
 
 ## 3. Recevoir un code à 6 chiffres par e-mail
 
@@ -34,7 +32,8 @@ L'appli demande un code, pas un lien (un lien ouvrirait le navigateur au lieu de
    Faites de même dans le modèle **Confirm signup**. Enregistrez.
 2. **Authentication > Sign In / Providers > Email** : vérifiez que « Email OTP Length » vaut **6**.
 3. **Authentication > Sign In / Providers** : laissez **Allow new users to sign up** activé. N'importe qui peut créer
-   son compte dans l'appli avec son e-mail, puis s'abonner seul. Votre budget reste protégé côté serveur : sans
+   son compte dans l'appli avec son e-mail ; son accès s'active quand il a payé votre lien de paiement avec le même e-mail
+   (étape 8) ou quand vous le lui offrez. Votre budget reste protégé côté serveur : sans
    abonnement actif (ou accès offert), pas de chat, pas de plan et pas d'analyse photo par l'IA (étape 6).
 4. L'envoi d'e-mails inclus dans l'offre gratuite est limité à quelques e-mails par heure. Avant le lancement,
    branchez votre propre service d'e-mail (**Authentication > Emails > SMTP Settings**, par exemple Brevo, gratuit).
@@ -47,7 +46,7 @@ L'appli demande un code, pas un lien (un lien ouvrirait le navigateur au lieu de
 1. **Project Settings > API** (ou « Data API ») : copiez **Project URL** et la clé **anon public**.
 2. Ouvrez `www/config.js` et collez-les entre les guillemets :
    ```js
-   window.MB_CONFIG = { supabaseUrl: "https://xxxx.supabase.co", supabaseAnonKey: "eyJ..." };
+   window.MB_CONFIG = { supabaseUrl: "https://jwcuejgcfosfxeiqwoeu.supabase.co", supabaseAnonKey: "eyJ..." };
    ```
    La clé « anon » peut être publique : ce sont les règles d'accès de l'étape 2 qui protègent les données.
    Ne collez **jamais** la clé `service_role` dans l'appli.
@@ -78,12 +77,16 @@ de commande, pas avec l'éditeur du site. Sur un ordinateur avec Node.js install
 
 ```bash
 npx supabase login
-npx supabase link --project-ref VOTRE_REF      # la partie « xxxx » de https://xxxx.supabase.co
+npx supabase link --project-ref jwcuejgcfosfxeiqwoeu      # votre projet : https://jwcuejgcfosfxeiqwoeu.supabase.co
 ```
 
 Les « secrets » se règlent au choix dans **Edge Functions > Secrets** (site) ou avec `npx supabase secrets set NOM=valeur`.
 
 ## 8. Abonnement 87 €/mois (Stripe)
+
+Les applis iPhone / Android ne vendent rien : le client paie hors appli, par le lien de paiement que vous lui envoyez.
+Paiement hors appli : créer un lien de paiement Stripe (abonnement 87 €/mois), activer l'e-mail obligatoire au paiement ; le webhook relie le paiement au compte par l'e-mail — le client doit utiliser la même adresse que dans l'appli.
+La page de paiement dans le navigateur (`create-checkout`, `billing-portal`) ne sert qu'à la version web.
 
 Faites tout d'abord en **mode test** (bouton « Test mode » en haut du tableau de bord Stripe), puis recommencez en mode réel.
 
@@ -96,43 +99,32 @@ Faites tout d'abord en **mode test** (bouton « Test mode » en haut du tableau 
    **Paramètres > Billing > Revenue recovery** (Récupération des revenus) : pour « si toutes les tentatives échouent »
    (« if all retries fail »), choisissez **Annuler l'abonnement** (« cancel the subscription »). Sinon un client en
    échec de paiement (`past_due`) garderait l'accès indéfiniment.
-5. Codes promo (facultatif) : **Catalogue de produits > Coupons**. Le champ code promo s'affiche au paiement.
-6. Secrets Supabase :
+5. **Lien de paiement** (celui que vous envoyez aux clients) : **Liens de paiement > Nouveau**, produit « Coaching
+   MB NUTRITION » 87 €/mois. Dans les options, rendez l'**e-mail obligatoire**. Prévenez le client de payer avec
+   **la même adresse e-mail que dans l'appli** : c'est elle qui relie le paiement à son compte et débloque l'accès.
+   Collez aussi ce lien dans `www/config.js` (`stripeLink`) pour la version web sans serveur.
+6. Codes promo (facultatif) : **Catalogue de produits > Coupons**. Le champ code promo s'affiche au paiement.
+7. Secrets Supabase :
    - `STRIPE_SECRET_KEY` = la clé secrète
    - `STRIPE_PRICE_ID` = `price_…`
-   - `STRIPE_PUBLISHABLE_KEY` = la **clé publiable** (`pk_test_…` / `pk_live_…`, même page que la clé secrète) :
-     elle sert au paiement dans l'appli. Sans elle, l'appli ouvre la page de paiement Stripe à la place.
    - `APP_URLS` = l'adresse où revenir après le paiement, par exemple `https://mb-nutrition.fr` (plusieurs adresses
-     séparées par des virgules ; la première sert par défaut). Depuis l'appli téléphone, le client revient ensuite dans l'appli.
-7. Déployez :
+     séparées par des virgules ; la première sert par défaut). Version web seulement.
+8. Déployez :
    ```bash
    npx supabase functions deploy create-checkout
-   npx supabase functions deploy create-subscription
    npx supabase functions deploy billing-portal
    npx supabase functions deploy stripe-webhook --no-verify-jwt
    ```
    `--no-verify-jwt` est obligatoire pour `stripe-webhook` : c'est Stripe qui l'appelle, pas un client connecté.
    La fonction vérifie elle-même la signature de Stripe.
-8. **Développeurs > Webhooks > Ajouter une destination** :
-   - URL : `https://VOTRE_REF.supabase.co/functions/v1/stripe-webhook`
+9. **Développeurs > Webhooks > Ajouter une destination** :
+   - URL : `https://jwcuejgcfosfxeiqwoeu.supabase.co/functions/v1/stripe-webhook`
    - Événements : `checkout.session.completed`, `customer.subscription.created`, `customer.subscription.updated`,
      `customer.subscription.deleted`, `invoice.payment_failed`
    - Copiez le **secret de signature** (`whsec_…`) dans le secret Supabase `STRIPE_WEBHOOK_SECRET`.
-9. Test : avec un compte client, abonnez-vous avec la carte de test `4242 4242 4242 4242` (date future, n'importe quel code).
+10. Test : avec un compte client (créé dans l'appli avec l'e-mail X), payez le lien de paiement avec le même e-mail X et la carte de test `4242 4242 4242 4242` (date future, n'importe quel code).
    Dans **Table Editor > subscriptions**, la ligne du client passe à `active`. Carte refusée : `4000 0000 0000 0002` ;
    validation 3D Secure : `4000 0027 6000 3184`.
-10. **Apple Pay (iPhone)** :
-   - https://developer.apple.com > **Identifiers > + > Merchant IDs** : créez `merchant.fr.mbnutrition.app`.
-   - **Identifiers > fr.mbnutrition.app** : cochez **Apple Pay Payment Processing** et associez ce Merchant ID.
-   - Stripe > **Paramètres > Moyens de paiement > Apple Pay > Ajouter une application iOS** : téléchargez la demande
-     de certificat (CSR) de Stripe, créez avec elle le certificat Apple Pay du Merchant ID sur le portail Apple,
-     puis renvoyez le fichier `.cer` à Stripe.
-   - Xcode : l'appli a déjà la capacité Apple Pay avec ce Merchant ID (`App.entitlements`) ; vérifiez qu'elle
-     apparaît dans **Signing & Capabilities** sans erreur.
-   - Sans cela, la carte reste disponible, Apple Pay n'apparaît simplement pas.
-11. **Google Pay (Android)** : rien à créer. Activez Google Pay dans Stripe (**Moyens de paiement**). Avec une clé
-   `pk_test_…`, Google Pay tourne en mode test ; en `pk_live_…`, en réel. Pour la mise en production, Google peut
-   demander d'accepter ses conditions dans la **Google Pay & Wallet Console**.
 
 Accès offert : dans l'espace coach, « Accès offert » donne l'accès sans payer (colonne `comp`). Seul le coach du
 client peut le changer, et Stripe n'y touche jamais. Paiement refusé : le client garde l'accès pendant que Stripe
@@ -151,7 +143,7 @@ son abonnement dans Stripe : sinon Stripe continue de le prélever ; le webhook 
 3. Choisissez un secret (une longue phrase au hasard) et mettez-le dans le secret Supabase `CAL_WEBHOOK_SECRET`.
 4. Déployez : `npx supabase functions deploy cal-webhook --no-verify-jwt` (c'est Cal.com qui l'appelle).
 5. Cal.com : **Paramètres > Développeur > Webhooks > Nouveau** :
-   - URL : `https://VOTRE_REF.supabase.co/functions/v1/cal-webhook`
+   - URL : `https://jwcuejgcfosfxeiqwoeu.supabase.co/functions/v1/cal-webhook`
    - Secret : le même que `CAL_WEBHOOK_SECRET`
    - Événements : **Réservation créée**, **Réservation reprogrammée**, **Réservation annulée**
 6. Important : le client doit réserver avec **le même e-mail que celui de son compte** dans l'appli, sinon le call
@@ -180,9 +172,8 @@ Récapitulatif des fonctions :
 | Fonction | Commande | Appelée par |
 |---|---|---|
 | analyze-meal | `npx supabase functions deploy analyze-meal` | l'appli |
-| create-checkout | `npx supabase functions deploy create-checkout` | l'appli |
-| create-subscription | `npx supabase functions deploy create-subscription` | l'appli (paiement dans l'appli) |
-| billing-portal | `npx supabase functions deploy billing-portal` | l'appli |
+| create-checkout | `npx supabase functions deploy create-checkout` | la version web |
+| billing-portal | `npx supabase functions deploy billing-portal` | la version web |
 | send-push | `npx supabase functions deploy send-push` | l'espace coach |
 | stripe-webhook | `npx supabase functions deploy stripe-webhook --no-verify-jwt` | Stripe |
 | cal-webhook | `npx supabase functions deploy cal-webhook --no-verify-jwt` | Cal.com |
@@ -198,8 +189,8 @@ Les pas, le cœur, le sommeil, le poids, les mensurations, le cycle et les photo
    (elle utilise le secret `STRIPE_SECRET_KEY` de l'étape 8). Elle annule l'abonnement Stripe tout de suite, sans
    remboursement au prorata, efface les photos, les rendez-vous et le compte. Les factures restent chez Stripe
    (10 ans, obligation comptable). Votre compte coach ne peut pas être supprimé par ce bouton.
-3. Ouvrez `www/legal.js` et remplacez `[À COMPLÉTER : adresse]` par votre adresse professionnelle
-   (obligatoire dans les mentions légales).
+3. Mentions légales : adresse et e-mail de contact sont dans `www/legal.js` ; changez `version` si vous modifiez le texte
+   (le consentement est redemandé).
 4. Signez (ou acceptez) l'accord de sous-traitance (« DPA ») de chaque prestataire :
    - Supabase : https://supabase.com/legal/dpa (à signer depuis le tableau de bord : **Organization > Legal documents**)
    - Stripe : https://stripe.com/legal/dpa (inclus dans le contrat Stripe, rien à signer en général)

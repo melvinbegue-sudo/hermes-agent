@@ -133,32 +133,22 @@ manuelle** dans l'app ; aucune autorisation santé supplémentaire n'est demand�
 l'ajoutera, il faudra : l'autorisation `READ_MENSTRUATION` (Android), une phrase sur le cycle dans
 le texte d'autorisation Santé (iPhone) et le formulaire Health Connect à mettre à jour.
 
-## Paiement de l'abonnement et règles Apple / Google
+## Paiement du coaching et règles Apple / Google
 
-L'abonnement (87 €/mois) se paie **dans l'app** avec Stripe : carte, **Apple Pay** (iPhone) ou
-**Google Pay** (Android), sans quitter l'app. Si ce paiement n'est pas disponible (navigateur,
-aperçu, configuration incomplète), l'app ouvre la page de paiement Stripe à la place.
-Réglages (clé publique, Apple Pay, Google Pay) : `supabase/README.md`, étape 8.
+Décision (21/11) : le coaching se paie **hors de l'appli**. Les applis iPhone et Android ne vendent
+rien : pas de prix, pas de bouton « S'abonner », pas d'Apple Pay / Google Pay, pas de lien vers une
+page de paiement (règle Apple **3.1.1** et anti-incitation ; Google Play Billing). L'appli vérifie
+seulement l'accès : code client (mode local), ou abonnement actif / accès offert par le coach (mode
+en ligne). Sans accès, elle affiche « Accès réservé aux clients MB NUTRITION » et un bouton
+« Actualiser ». La version web (artifact) garde l'offre telle quelle.
 
-Apple impose normalement son propre paiement (règle **3.1.1**, avec commission) pour tout
-contenu numérique débloqué dans l'app. Exception **3.1.3(d) « services de personne à
-personne »** : un coaching individuel en temps réel entre deux personnes (comme un coach
-sportif ou un nutritionniste) peut être payé autrement. Le cœur de l'offre (suivi et appels avec
-Melvin) entre dans ce cas ; le relecteur Apple peut toutefois juger que le plan ou le chat sont
-du « contenu numérique ».
+Paiement hors appli : créer un lien de paiement Stripe (abonnement 87 €/mois), activer l'e-mail obligatoire au paiement ; le webhook relie le paiement au compte par l'e-mail — le client doit utiliser la même adresse que dans l'appli.
 
-- Dans l'app, restez **factuel** : « Votre abonnement n'est pas actif », bouton « Gérer mon
-  abonnement ». Évitez « moins cher sur le site », les comparaisons de prix ou les incitations à
-  payer ailleurs.
-- Dans les notes pour le relecteur (App Store Connect), expliquez qu'il s'agit d'un coaching
-  nutritionnel individuel avec appels en direct, et fournissez un compte de test abonné.
-- Payer avec Stripe **dans** l'app n'est permis que si l'exception 3.1.3(d) s'applique. Sinon Apple
-  exige son achat intégré (In-App Purchase). Google Play a la même logique (Play Billing obligatoire
-  pour le contenu numérique, exception pour les services réels / individuels).
-  **À faire confirmer par Apple et Google avant la soumission.**
-- **Melvin : vérifiez les règles Apple en vigueur pour la France / l'UE avant la soumission**
-  (elles ont changé plusieurs fois avec le DMA européen). Google Play a des règles proches
-  (paiements pour services hors app).
+Détail des réglages Stripe : `supabase/README.md`, étape 8.
+
+- Dans les notes pour le relecteur (App Store Connect / Play Console), expliquez que l'appli est
+  l'outil de suivi d'un coaching nutritionnel individuel vendu hors appli, et fournissez un compte
+  de test avec accès actif.
 
 ## Bon à savoir
 
