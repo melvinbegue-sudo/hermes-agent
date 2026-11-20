@@ -3,7 +3,6 @@
 (function () {
   'use strict';
   var FORMATS = ['EAN_13', 'EAN_8', 'UPC_A', 'UPC_E'];
-  var APPLE_MERCHANT = 'merchant.fr.mbnutrition.app', stripeKey = null; // Stripe initialisé une fois par clé
 
   function cap() { try { return window.Capacitor || null; } catch (e) { return null; } }
   function isNative() {
@@ -96,7 +95,7 @@
   window.MBNative = {
     isNative: isNative,
 
-    // Stripe Checkout / portail, Cal.com… : navigateur intégré en natif, nouvel onglet sur le web.
+    // Cal.com, liens drive… : navigateur intégré en natif, nouvel onglet sur le web (Stripe : web seulement).
     openUrl: async function (url) {
       try {
         if (!/^https?:\/\//i.test(String(url))) return false;
@@ -106,29 +105,6 @@
         if (w) { try { w.opener = null; } catch (e) {} } else window.location.href = url; // popup bloquée
         return true;
       } catch (e) { return false; }
-    },
-
-    // Abonnement payé dans l'appli : PaymentSheet Stripe (carte, Apple Pay sur iOS, Google Pay sur Android).
-    // p = MBSync.billing.sheetParams(). "paid" | "canceled" | "failed" ; null = pas de natif -> l'appli ouvre Checkout.
-    canPay: function () { return !!P('Stripe'); }, // avant de demander un abonnement au serveur
-    pay: async function (p) {
-      var st = P('Stripe');
-      if (!st || !p || !p.clientSecret || !p.publishableKey) return null;
-      var ios = platform() === 'ios';
-      try {
-        if (stripeKey !== p.publishableKey) { await st.initialize({ publishableKey: p.publishableKey }); stripeKey = p.publishableKey; }
-        await st.createPaymentSheet({
-          paymentIntentClientSecret: p.clientSecret, customerId: p.customerId, customerEphemeralKeySecret: p.ephemeralKey,
-          merchantDisplayName: 'MB NUTRITION', countryCode: 'FR',
-          enableApplePay: ios, applePayMerchantId: ios ? APPLE_MERCHANT : undefined,
-          enableGooglePay: !ios, GooglePayIsTesting: /^pk_test_/.test(p.publishableKey)
-        });
-      } catch (e) { return null; } // feuille impossible à préparer : repli Checkout
-      try {
-        var r = await st.presentPaymentSheet();
-        var res = r && r.paymentResult;
-        return res === 'paymentSheetCompleted' ? 'paid' : res === 'paymentSheetCanceled' ? 'canceled' : 'failed';
-      } catch (e) { return 'failed'; }
     },
 
     // cb() quand le navigateur intégré se ferme (iOS : pas de visibilitychange au retour de Safari View Controller) ; web : rien.

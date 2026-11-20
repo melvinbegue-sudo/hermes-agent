@@ -9,11 +9,6 @@
 	<true/>
 	<key>com.apple.developer.healthkit.access</key>
 	<array/>
-	<!-- Apple Pay (PaymentSheet Stripe) : Merchant ID à créer dans le portail Apple Developer -->
-	<key>com.apple.developer.in-app-payments</key>
-	<array>
-		<string>merchant.fr.mbnutrition.app</string>
-	</array>
 	<!-- partagé avec le widget MBWidget (Anneaux du jour) -->
 	<key>com.apple.security.application-groups</key>
 	<array>

@@ -37,9 +37,6 @@
         <!-- ML Kit : télécharge le module code-barres à l'installation -->
         <meta-data android:name="com.google.mlkit.vision.DEPENDENCIES" android:value="barcode_ui" />
 
-        <!-- Google Pay dans la PaymentSheet Stripe -->
-        <meta-data android:name="com.google.android.gms.wallet.api.enabled" android:value="true" />
-
         <!-- Push FCM : icône blanche sur fond transparent (sinon carré blanc). Ajouter
              res/drawable/ic_stat_notify puis décommenter :
         <meta-data android:name="com.google.firebase.messaging.default_notification_icon" android:resource="@drawable/ic_stat_notify" /> -->

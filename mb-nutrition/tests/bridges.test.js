@@ -221,38 +221,3 @@ test('widget.update: iOS sends clean numbers to MBWidget; Android and web false'
   const bad = { update: async () => { throw new Error('no app group'); } };
   assert.strictEqual(await load(nativeWin({ MBWidget: bad }), 'native.js').MBNative.widget.update(data), false);
 });
-
-test('pay/canPay: PaymentSheet result -> paid/canceled/failed; init once; setup error or web -> null', async () => {
-  const P = { clientSecret: 'pi_1_secret', customerId: 'cus_1', ephemeralKey: 'ek_1', publishableKey: 'pk_test_1' };
-  const fakeStripe = (result, opts = {}) => {
-    const log = { init: [], sheet: [] };
-    return { log, initialize: async (o) => log.init.push(o),
-      createPaymentSheet: async (o) => { if (opts.badSetup) throw new Error('no'); log.sheet.push(o); },
-      presentPaymentSheet: async () => { if (opts.boom) throw new Error('x'); return { paymentResult: result }; } };
-  };
-  let s = fakeStripe('paymentSheetCompleted');
-  let w = load(nativeWin({ Stripe: s }, 'ios'), 'native.js');
-  assert.strictEqual(await w.MBNative.pay(P), 'paid');
-  assert.strictEqual(await w.MBNative.pay(P), 'paid');
-  assert.deepStrictEqual(plain(s.log.init), [{ publishableKey: 'pk_test_1' }]); // once
-  const o = plain(s.log.sheet[0]);
-  assert.deepStrictEqual([o.paymentIntentClientSecret, o.customerId, o.customerEphemeralKeySecret, o.countryCode, o.enableApplePay, o.applePayMerchantId, o.enableGooglePay],
-    ['pi_1_secret', 'cus_1', 'ek_1', 'FR', true, 'merchant.fr.mbnutrition.app', false]);
-
-  s = fakeStripe('paymentSheetCanceled');
-  w = load(nativeWin({ Stripe: s }, 'android'), 'native.js');
-  assert.strictEqual(await w.MBNative.pay(P), 'canceled');
-  assert.deepStrictEqual([s.log.sheet[0].enableGooglePay, s.log.sheet[0].GooglePayIsTesting, s.log.sheet[0].enableApplePay], [true, true, false]);
-
-  w = load(nativeWin({ Stripe: fakeStripe('paymentSheetFailed') }), 'native.js');
-  assert.strictEqual(await w.MBNative.pay(P), 'failed');
-  w = load(nativeWin({ Stripe: fakeStripe(null, { boom: true }) }), 'native.js');
-  assert.strictEqual(await w.MBNative.pay(P), 'failed');
-  w = load(nativeWin({ Stripe: fakeStripe(null, { badSetup: true }) }), 'native.js');
-  assert.strictEqual(await w.MBNative.pay(P), null);
-  assert.strictEqual(await load(nativeWin({ Stripe: fakeStripe('paymentSheetCompleted') }), 'native.js').MBNative.pay(null), null);
-  assert.strictEqual(await load({}, 'native.js').MBNative.pay(P), null); // web
-  assert.strictEqual(load(nativeWin({ Stripe: fakeStripe('x') }), 'native.js').MBNative.canPay(), true);
-  assert.strictEqual(load(nativeWin({}), 'native.js').MBNative.canPay(), false);
-  assert.strictEqual(load({}, 'native.js').MBNative.canPay(), false);
-});

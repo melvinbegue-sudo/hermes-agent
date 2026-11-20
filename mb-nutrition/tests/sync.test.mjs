@@ -16,7 +16,7 @@ const calls = (S) => [
   S.pushMeasure({ date: "2026-11-18", waist: 80 }), S.pushCheckin({ date: "2026-11-18" }), S.pushTrainings("2026-11-18", []),
   S.uploadPhoto({}, "meal"), S.photoUrl("x"), S.pullPlan(), S.messages.list(), S.messages.send("hi"), S.messages.markRead(),
   S.analyzeMeal({}), S.coach.clients(), S.coach.client("id"), S.coach.update("id", { plan: {} }),
-  S.billing.status(), S.billing.checkout(), S.billing.portal(), S.billing.sheetParams(), S.calls.next(), S.calls.list(), S.calls.list("id"),
+  S.billing.status(), S.billing.checkout(), S.billing.portal(), S.calls.next(), S.calls.list(), S.calls.list("id"),
   S.push.register("tok", "ios"), S.push.unregister("tok"), S.coach.grantAccess("id", true), S.coach.push({ to: "all", title: "t", body: "b" }),
   S.consent.get(), S.consent.get("id"), S.consent.set({ health: true, version: "2026-11" }), S.account.export(), S.account.delete(),
 ];
@@ -118,15 +118,4 @@ test("consent get/set and account export/delete", async () => {
   assert.equal(await none.consent.get(), null);
   assert.equal(await none.account.delete(), false);
   assert.equal(await none.account.export(), null); // a missing table must not yield a silently partial export
-});
-
-test("billing.sheetParams calls create-subscription and keeps only the PaymentSheet fields", async () => {
-  const called = [];
-  const res = { clientSecret: "pi_1_secret", customerId: "cus_1", ephemeralKey: "ek_1", subscriptionId: "sub_1", publishableKey: "pk_test_1", extra: 1 };
-  const S = live(fake({}, "u1", { functions: { invoke: async (name) => { called.push(name); return { data: res, error: null }; } } }));
-  assert.deepEqual(plain(await S.billing.sheetParams()),
-    { clientSecret: "pi_1_secret", customerId: "cus_1", ephemeralKey: "ek_1", subscriptionId: "sub_1", publishableKey: "pk_test_1" });
-  assert.deepEqual(called, ["create-subscription"]);
-  const bad = live(fake({}, "u1", { functions: { invoke: async () => ({ data: { clientSecret: "x" }, error: null }) } }));
-  assert.equal(await bad.billing.sheetParams(), null); // missing key -> Checkout fallback
 });

@@ -10,7 +10,6 @@
     "test": "node --test tests/*.test.js tests/*.test.mjs"
   },
   "dependencies": {
-    "@capacitor-community/stripe": "^8.3.0",
     "@capacitor-firebase/messaging": "^8.6.0",
     "@capacitor-mlkit/barcode-scanning": "^8.2.2",
     "@capacitor/android": "^8.6.2",
