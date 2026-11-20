@@ -98,11 +98,14 @@ Faites tout d'abord en **mode test** (bouton « Test mode » en haut du tableau 
 6. Secrets Supabase :
    - `STRIPE_SECRET_KEY` = la clé secrète
    - `STRIPE_PRICE_ID` = `price_…`
+   - `STRIPE_PUBLISHABLE_KEY` = la **clé publiable** (`pk_test_…` / `pk_live_…`, même page que la clé secrète) :
+     elle sert au paiement dans l'appli. Sans elle, l'appli ouvre la page de paiement Stripe à la place.
    - `APP_URLS` = l'adresse où revenir après le paiement, par exemple `https://mb-nutrition.fr` (plusieurs adresses
      séparées par des virgules ; la première sert par défaut). Depuis l'appli téléphone, le client revient ensuite dans l'appli.
 7. Déployez :
    ```bash
    npx supabase functions deploy create-checkout
+   npx supabase functions deploy create-subscription
    npx supabase functions deploy billing-portal
    npx supabase functions deploy stripe-webhook --no-verify-jwt
    ```
@@ -114,14 +117,27 @@ Faites tout d'abord en **mode test** (bouton « Test mode » en haut du tableau 
      `customer.subscription.deleted`, `invoice.payment_failed`
    - Copiez le **secret de signature** (`whsec_…`) dans le secret Supabase `STRIPE_WEBHOOK_SECRET`.
 9. Test : avec un compte client, abonnez-vous avec la carte de test `4242 4242 4242 4242` (date future, n'importe quel code).
-   Dans **Table Editor > subscriptions**, la ligne du client passe à `active`.
+   Dans **Table Editor > subscriptions**, la ligne du client passe à `active`. Carte refusée : `4000 0000 0000 0002` ;
+   validation 3D Secure : `4000 0027 6000 3184`.
+10. **Apple Pay (iPhone)** :
+   - https://developer.apple.com > **Identifiers > + > Merchant IDs** : créez `merchant.fr.mbnutrition.app`.
+   - **Identifiers > fr.mbnutrition.app** : cochez **Apple Pay Payment Processing** et associez ce Merchant ID.
+   - Stripe > **Paramètres > Moyens de paiement > Apple Pay > Ajouter une application iOS** : téléchargez la demande
+     de certificat (CSR) de Stripe, créez avec elle le certificat Apple Pay du Merchant ID sur le portail Apple,
+     puis renvoyez le fichier `.cer` à Stripe.
+   - Xcode : l'appli a déjà la capacité Apple Pay avec ce Merchant ID (`App.entitlements`) ; vérifiez qu'elle
+     apparaît dans **Signing & Capabilities** sans erreur.
+   - Sans cela, la carte reste disponible, Apple Pay n'apparaît simplement pas.
+11. **Google Pay (Android)** : rien à créer. Activez Google Pay dans Stripe (**Moyens de paiement**). Avec une clé
+   `pk_test_…`, Google Pay tourne en mode test ; en `pk_live_…`, en réel. Pour la mise en production, Google peut
+   demander d'accepter ses conditions dans la **Google Pay & Wallet Console**.
 
 Accès offert : dans l'espace coach, « Accès offert » donne l'accès sans payer (colonne `comp`). Seul le coach du
 client peut le changer, et Stripe n'y touche jamais. Paiement refusé : le client garde l'accès pendant que Stripe
 retente le prélèvement (`past_due`), puis le perd si l'abonnement est annulé.
 
 Quand un client supprime lui-même son compte dans l'appli, son abonnement Stripe est annulé automatiquement
-(étape 11). **Si c'est vous qui supprimez un compte** depuis Supabase (**Authentication > Users**), annulez d'abord
+(partie 11, RGPD). **Si c'est vous qui supprimez un compte** depuis Supabase (**Authentication > Users**), annulez d'abord
 son abonnement dans Stripe : sinon Stripe continue de le prélever ; le webhook ignore simplement ce client supprimé.
 
 ## 9. Calls (Cal.com)
@@ -163,6 +179,7 @@ Récapitulatif des fonctions :
 |---|---|---|
 | analyze-meal | `npx supabase functions deploy analyze-meal` | l'appli |
 | create-checkout | `npx supabase functions deploy create-checkout` | l'appli |
+| create-subscription | `npx supabase functions deploy create-subscription` | l'appli (paiement dans l'appli) |
 | billing-portal | `npx supabase functions deploy billing-portal` | l'appli |
 | send-push | `npx supabase functions deploy send-push` | l'espace coach |
 | stripe-webhook | `npx supabase functions deploy stripe-webhook --no-verify-jwt` | Stripe |

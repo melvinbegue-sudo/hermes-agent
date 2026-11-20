@@ -91,6 +91,7 @@ Non-secret app config in www/config.js: `calUrl` (e.g. "https://cal.com/melvin-b
 - `pay(params)` -> "paid" | "canceled" | "failed" | null — Stripe PaymentSheet (@capacitor-community/stripe: card, Apple Pay
   on iOS, Google Pay on Android) with `billing.sheetParams()`. null = native path unavailable -> the app falls back to
   `billing.checkout()`. Access unlocks when stripe-webhook writes the now-active subscription.
+- `canPay()` -> boolean: the Stripe plugin is present (checked before asking the server for `sheetParams`).
 - Pre-session reminders keep using `notify.schedule(list)`.
 
 ## v3 — RGPD, alertes, bilans, aliments, recettes, drive, badges, widget, cycle, PDF, sobriété

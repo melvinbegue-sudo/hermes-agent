@@ -110,6 +110,7 @@
 
     // Abonnement payé dans l'appli : PaymentSheet Stripe (carte, Apple Pay sur iOS, Google Pay sur Android).
     // p = MBSync.billing.sheetParams(). "paid" | "canceled" | "failed" ; null = pas de natif -> l'appli ouvre Checkout.
+    canPay: function () { return !!P('Stripe'); }, // avant de demander un abonnement au serveur
     pay: async function (p) {
       var st = P('Stripe');
       if (!st || !p || !p.clientSecret || !p.publishableKey) return null;

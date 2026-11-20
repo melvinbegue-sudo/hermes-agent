@@ -826,6 +826,13 @@ async function pullCall(){if(!billOn()||locked())return;let c=null;try{c=await M
 const openUrl=u=>{try{if(window.MBNative?.openUrl)return MBNative.openUrl(u);}catch(e){}location.href=u;};
 async function billGo(kind,btn){if(btn)btn.disabled=true;let u=null;try{u=await MBSync.billing?.[kind]?.();}catch(e){}if(btn)btn.disabled=false;
   if(typeof u!=="string"||!/^https:\/\//.test(u)){toast("Paiement indisponible, réessayez");return;}openUrl(u);}
+/* M'abonner : paiement dans l'appli (PaymentSheet) en natif ; web ou natif indisponible -> Stripe Checkout */
+async function subscribe(btn){let r=null;
+  if(native()&&window.MBNative?.canPay?.()){if(btn)btn.disabled=true;try{const p=await MBSync.billing?.sheetParams?.();if(p)r=await MBNative.pay(p);}catch(e){}if(btn)btn.disabled=false;}
+  if(r===null)return billGo("checkout",btn);if(r==="failed")return toast("Paiement non abouti");if(r!=="paid")return;
+  toast("Paiement validé");$(".sheet-back")?.click();
+  for(const ms of [1500,3000,6000]){await new Promise(ok=>setTimeout(ok,ms));await pullBilling();if(!locked())break;} /* le webhook Stripe arrive en quelques secondes */
+  if(!$(".sheet"))rerender();if(locked())toast("Activation en cours");}
 const frDate=t=>{const d=new Date(t);return t&&!isNaN(d)?d.toLocaleDateString("fr-FR",{day:"numeric",month:"long",year:"numeric"}):"";};
 const callWhen=t=>{const d=new Date(t);return isNaN(d)?"":d.toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long"})+" à "+hhmm(+d);};
 const BILL={active:["Actif","ok","Actif"],trialing:["Actif","ok","Actif"],comp:["Accès offert","ok","Offert"],past_due:["Paiement en échec","bad","En échec"]},billOf=st=>BILL[st]||["Inactif","","Inactif"];
@@ -834,7 +841,7 @@ function payAlert(){return billOn()&&S.billing?.status==="past_due"?'<section cl
 function payHtml(){return payAlert()+'<section class="card stack paywall"><span class="eyebrow">Abonnement</span><h2>Suivi avec Melvin</h2><p class="price"><b>'+PRICE+' €</b> / mois</p><ul class="incl">'+
   ["Plan sur mesure","Messages","Calls illimités","Suivi santé"].map(t=>'<li><svg aria-hidden="true"><use href="#i-check"/></svg>'+t+'</li>').join("")+
   '</ul>'+(S.billing?.status==="past_due"?'':'<button class="btn gold block" data-checkout>M\'abonner</button>')+'<p class="small mute">Stripe · résiliable depuis Moi</p></section><p class="small mute" style="text-align:center">Journal et tendances restent accessibles</p>';}
-function bindPay(r){$$("[data-checkout]",r).forEach(b=>b.onclick=()=>billGo("checkout",b));$$("[data-portal]",r).forEach(b=>b.onclick=()=>billGo("portal",b));
+function bindPay(r){$$("[data-checkout]",r).forEach(b=>b.onclick=()=>subscribe(b));$$("[data-portal]",r).forEach(b=>b.onclick=()=>billGo("portal",b));
   $$("[data-paysh]",r).forEach(b=>b.onclick=paySheet);$("[data-book]",r)&&($("[data-book]",r).onclick=()=>openUrl(calLink()));$("[data-join]",r)&&($("[data-join]",r).onclick=()=>openUrl(nCall.url));}
 function paySheet(){sheet('<div class="stack">'+payHtml()+'</div>',sh=>bindPay(sh));}
 function subCard(){if(!billOn())return '';const b=S.billing;

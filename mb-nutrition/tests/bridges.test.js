@@ -222,7 +222,7 @@ test('widget.update: iOS sends clean numbers to MBWidget; Android and web false'
   assert.strictEqual(await load(nativeWin({ MBWidget: bad }), 'native.js').MBNative.widget.update(data), false);
 });
 
-test('pay: PaymentSheet result -> paid/canceled/failed; init once; setup error or web -> null', async () => {
+test('pay/canPay: PaymentSheet result -> paid/canceled/failed; init once; setup error or web -> null', async () => {
   const P = { clientSecret: 'pi_1_secret', customerId: 'cus_1', ephemeralKey: 'ek_1', publishableKey: 'pk_test_1' };
   const fakeStripe = (result, opts = {}) => {
     const log = { init: [], sheet: [] };
@@ -252,4 +252,7 @@ test('pay: PaymentSheet result -> paid/canceled/failed; init once; setup error o
   assert.strictEqual(await w.MBNative.pay(P), null);
   assert.strictEqual(await load(nativeWin({ Stripe: fakeStripe('paymentSheetCompleted') }), 'native.js').MBNative.pay(null), null);
   assert.strictEqual(await load({}, 'native.js').MBNative.pay(P), null); // web
+  assert.strictEqual(load(nativeWin({ Stripe: fakeStripe('x') }), 'native.js').MBNative.canPay(), true);
+  assert.strictEqual(load(nativeWin({}), 'native.js').MBNative.canPay(), false);
+  assert.strictEqual(load({}, 'native.js').MBNative.canPay(), false);
 });

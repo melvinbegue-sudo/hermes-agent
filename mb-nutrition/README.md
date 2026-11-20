@@ -135,7 +135,11 @@ le texte d'autorisation Santé (iPhone) et le formulaire Health Connect à mettr
 
 ## Paiement de l'abonnement et règles Apple / Google
 
-L'abonnement est payé sur **Stripe**, hors de l'app (page ouverte dans le navigateur).
+L'abonnement (87 €/mois) se paie **dans l'app** avec Stripe : carte, **Apple Pay** (iPhone) ou
+**Google Pay** (Android), sans quitter l'app. Si ce paiement n'est pas disponible (navigateur,
+aperçu, configuration incomplète), l'app ouvre la page de paiement Stripe à la place.
+Réglages (clé publique, Apple Pay, Google Pay) : `supabase/README.md`, étape 8.
+
 Apple impose normalement son propre paiement (règle **3.1.1**, avec commission) pour tout
 contenu numérique débloqué dans l'app. Exception **3.1.3(d) « services de personne à
 personne »** : un coaching individuel en temps réel entre deux personnes (comme un coach
@@ -148,6 +152,10 @@ du « contenu numérique ».
   payer ailleurs.
 - Dans les notes pour le relecteur (App Store Connect), expliquez qu'il s'agit d'un coaching
   nutritionnel individuel avec appels en direct, et fournissez un compte de test abonné.
+- Payer avec Stripe **dans** l'app n'est permis que si l'exception 3.1.3(d) s'applique. Sinon Apple
+  exige son achat intégré (In-App Purchase). Google Play a la même logique (Play Billing obligatoire
+  pour le contenu numérique, exception pour les services réels / individuels).
+  **À faire confirmer par Apple et Google avant la soumission.**
 - **Melvin : vérifiez les règles Apple en vigueur pour la France / l'UE avant la soumission**
   (elles ont changé plusieurs fois avec le DMA européen). Google Play a des règles proches
   (paiements pour services hors app).
