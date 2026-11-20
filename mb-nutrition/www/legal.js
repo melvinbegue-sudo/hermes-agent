@@ -3,7 +3,6 @@
    Bump `version` whenever consentText or the data uses change: the app then asks for consent again.
 
    TO CHECK WITH A LAWYER before going live (not shown in the UI):
-   - postal address of the controller (LCEN art. 6 III) — still "[À COMPLÉTER]";
    - transfer safeguards per processor: whether each US processor is certified under the EU-US Data Privacy
      Framework, and that its DPA includes the Commission's standard contractual clauses (SCC);
    - retention: 10 years for billing records (Code de commerce L123-22) is kept by Stripe; confirm nothing else
@@ -19,7 +18,7 @@
   var ul = function (items) { return "<ul><li>" + items.join("</li><li>") + "</li></ul>"; };
 
   window.MB_LEGAL = {
-    version: "2026-11",
+    version: "2026-11-21",
     short: "Estimations indicatives, pas un suivi médical.",
     consentText:
       "J’accepte que MB NUTRITION traite mes données de santé (pas, fréquence cardiaque, sommeil, poids, mensurations, " +
@@ -28,7 +27,7 @@
     privacyHtml: [
       h2("Qui est responsable de vos données"),
       p("BEGUE Melvin, entreprise individuelle (MB NUTRITION), SIRET 981 481 864 00016, " +
-        "[À COMPLÉTER : adresse]. Contact : <a href=\"mailto:melvin.begue@gmail.com\">melvin.begue@gmail.com</a>."),
+        "19 rue du Moulin de la Chapelle, 45340 Beaune-la-Rolande. Contact : <a href=\"mailto:melvin.begue@mb-nutritions.com\">melvin.begue@mb-nutritions.com</a>."),
 
       h2("Données utilisées"),
       ul([
@@ -58,7 +57,7 @@
       p("Votre coach, Melvin BEGUE, et les prestataires techniques suivants, uniquement pour leur service :"),
       ul([
         "Supabase : hébergement de la base et des photos, serveurs dans l’Union européenne.",
-        "Stripe : paiement de l’abonnement et factures.",
+        "Stripe : paiement du coaching par lien de paiement, hors de l’application.",
         "Cal.com : prise de rendez-vous des calls (nom, e-mail, horaire).",
         "Google Firebase : envoi des notifications (identifiant technique de votre téléphone).",
         "Anthropic : analyse d’une photo de repas, seulement quand vous la demandez. La photo n’est pas utilisée pour entraîner leurs modèles.",
@@ -83,7 +82,7 @@
         "retirer votre consentement, vous opposer à un traitement ou demander sa limitation."),
       ul([
         "Dans l’appli : « Exporter mes données » (fichier JSON) et « Supprimer mon compte » (supprime aussi l’abonnement en cours, sans prélèvement suivant).",
-        "Par e-mail : <a href=\"mailto:melvin.begue@gmail.com\">melvin.begue@gmail.com</a>. Réponse sous un mois.",
+        "Par e-mail : <a href=\"mailto:melvin.begue@mb-nutritions.com\">melvin.begue@mb-nutritions.com</a>. Réponse sous un mois.",
       ]),
       p("Si vous estimez que vos droits ne sont pas respectés, vous pouvez saisir la CNIL : " +
         "<a href=\"https://www.cnil.fr/fr/plaintes\" target=\"_blank\" rel=\"noopener\">cnil.fr/fr/plaintes</a>, " +
